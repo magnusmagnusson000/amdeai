@@ -144,8 +144,13 @@ log_source_tree "/opt/rocm"
 echo "Call flow: $EAI_ROOT/docs/call-flows/01-rocm-host.md"
 
 disk_report "01-host-rocm-done"
+EAI_STATE_DIR="${EAI_STATE_DIR:-$HOME/.cache/amdeai}"
+mkdir -p "$EAI_STATE_DIR"
 if [[ "${NEEDS_REBOOT:-0}" -eq 1 ]]; then
   echo "REBOOT REQUIRED after ROCm/GRUB changes."
+  touch "$EAI_STATE_DIR/reboot-after-01-host-rocm"
+else
+  rm -f "$EAI_STATE_DIR/reboot-after-01-host-rocm"
 fi
 if [[ -n "${EAI_BACKUP_DIR:-}" ]]; then
   echo "Config backups: $EAI_BACKUP_DIR"

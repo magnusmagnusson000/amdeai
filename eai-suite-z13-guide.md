@@ -191,7 +191,7 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --tls-san=${MY_IP} \
   --disable=traefik \
   --disable=servicelb \
-  --kubelet-arg=--allowed-unsafe-sysctls=net.*,kernel.* \
+  --kubelet-arg=--allowed-unsafe-sysctls=net.* \
   --kube-apiserver-arg=allow-privileged=true" sh -
 
 # Wait for k3s to become ready (~60s)
