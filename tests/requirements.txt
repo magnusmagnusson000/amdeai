@@ -1,0 +1,5 @@
+pytest>=7.4
+pytest-asyncio
+kubernetes>=29
+playwright>=1.44
+requests>=2.31

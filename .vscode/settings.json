@@ -1,0 +1,4 @@
+{
+  "python.defaultInterpreterPath": "/home/magnus/projects/venvs/amd/bin/python",
+  "python.terminal.activateEnvironment": true
+}
