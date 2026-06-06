@@ -177,3 +177,22 @@ No source patches required. Ensure GPU pod specs inherit the env vars above (Dae
 | Date | Author | Notes |
 |------|--------|-------|
 | 2026-06-06 | amdeai gfx1151 enable | Initial G1–G3 patches + documentation |
+| 2026-06-06 | merge to llama.cpp master | Merged `gfx1151-rdna35-tuning` into upstream master @ `0ab06d382`; HIP build OK |
+
+## Runtime validation (2026-06-06)
+
+| Step | Result |
+|------|--------|
+| `git pull origin master` + merge gfx1151 branch | OK — conflict in `mmvq.cu` resolved (kept RDNA3_5 + TURING tables) |
+| HIP cmake/build `AMDGPU_TARGETS=gfx1151` | OK — `build-hip/bin/llama-cli` @ `0ab06d382` |
+| `llama-cli --list-devices` | OK — gfx1151 detected |
+| SLM / Gemma HIP inference | **Blocked** — Ollama held ~78% GPU; `sudo` required to stop. First HIP load also spins at "Loading model..." (long JIT or GPU contention) |
+
+**Run validation after stopping Ollama:**
+
+```bash
+sudo systemctl stop ollama
+bash scripts/validate-hip-gfx1151.sh
+```
+
+**Before full EAI stack:** apply GRUB guide values (`scripts/01-host-rocm.sh`) and reboot so `rocm-smi` reports ~128 GiB VRAM (currently ~4 GiB without full tuning).
