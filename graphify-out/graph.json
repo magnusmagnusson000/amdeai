@@ -1,0 +1,3676 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "settings.json",
+      "file_type": "code",
+      "source_file": ".vscode/settings.json",
+      "source_location": "L1",
+      "id": "vscode_settings",
+      "community": 24,
+      "norm_label": "settings.json"
+    },
+    {
+      "label": "python.defaultInterpreterPath",
+      "file_type": "code",
+      "source_file": ".vscode/settings.json",
+      "source_location": "L2",
+      "id": "vscode_settings_python_defaultinterpreterpath",
+      "community": 24,
+      "norm_label": "python.defaultinterpreterpath"
+    },
+    {
+      "label": "python.terminal.activateEnvironment",
+      "file_type": "code",
+      "source_file": ".vscode/settings.json",
+      "source_location": "L3",
+      "id": "vscode_settings_python_terminal_activateenvironment",
+      "community": 24,
+      "norm_label": "python.terminal.activateenvironment"
+    },
+    {
+      "label": "00-prerequisites.sh",
+      "file_type": "code",
+      "source_file": "scripts/00-prerequisites.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_00_prerequisites",
+      "community": 20,
+      "norm_label": "00-prerequisites.sh"
+    },
+    {
+      "label": "00-prerequisites.sh script",
+      "file_type": "code",
+      "source_file": "scripts/00-prerequisites.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_00_prerequisites_sh__entry",
+      "community": 20,
+      "norm_label": "00-prerequisites.sh script"
+    },
+    {
+      "label": "PATH",
+      "file_type": "code",
+      "source_file": "scripts/00-prerequisites.sh",
+      "source_location": "L33",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_00_prerequisites_path",
+      "community": 20,
+      "norm_label": "path"
+    },
+    {
+      "label": "01-host-rocm.sh",
+      "file_type": "code",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_01_host_rocm",
+      "community": 9,
+      "norm_label": "01-host-rocm.sh"
+    },
+    {
+      "label": "01-host-rocm.sh script",
+      "file_type": "code",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_01_host_rocm_sh__entry",
+      "community": 9,
+      "norm_label": "01-host-rocm.sh script"
+    },
+    {
+      "label": "EAI_GRUB_GUIDE_GTT",
+      "file_type": "code",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L9",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_01_host_rocm_eai_grub_guide_gtt",
+      "community": 9,
+      "norm_label": "eai_grub_guide_gtt"
+    },
+    {
+      "label": "EAI_GRUB_GUIDE_TTM",
+      "file_type": "code",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L10",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_01_host_rocm_eai_grub_guide_ttm",
+      "community": 9,
+      "norm_label": "eai_grub_guide_ttm"
+    },
+    {
+      "label": "merge_grub_cmdline()",
+      "file_type": "code",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L15",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_01_host_rocm_merge_grub_cmdline",
+      "community": 9,
+      "norm_label": "merge_grub_cmdline()"
+    },
+    {
+      "label": "PATH",
+      "file_type": "code",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L139",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_01_host_rocm_path",
+      "community": 9,
+      "norm_label": "path"
+    },
+    {
+      "label": "02-kubernetes.sh",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_02_kubernetes",
+      "community": 0,
+      "norm_label": "02-kubernetes.sh"
+    },
+    {
+      "label": "kube_user_home()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L8",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_kube_user_home",
+      "community": 0,
+      "norm_label": "kube_user_home()"
+    },
+    {
+      "label": "kube_owner()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L16",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_kube_owner",
+      "community": 0,
+      "norm_label": "kube_owner()"
+    },
+    {
+      "label": "kubectl_k3s()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L24",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_kubectl_k3s",
+      "community": 0,
+      "norm_label": "kubectl_k3s()"
+    },
+    {
+      "label": "MY_IP",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L28",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_02_kubernetes_my_ip",
+      "community": 0,
+      "norm_label": "my_ip"
+    },
+    {
+      "label": "KUBECONFIG",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L30",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_02_kubernetes_kubeconfig",
+      "community": 0,
+      "norm_label": "kubeconfig"
+    },
+    {
+      "label": "preflight_kubernetes()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L44",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_preflight_kubernetes",
+      "community": 0,
+      "norm_label": "preflight_kubernetes()"
+    },
+    {
+      "label": "check_registry_nodeport_free()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L61",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_check_registry_nodeport_free",
+      "community": 0,
+      "norm_label": "check_registry_nodeport_free()"
+    },
+    {
+      "label": "backup_kubeconfig()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L76",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_backup_kubeconfig",
+      "community": 0,
+      "norm_label": "backup_kubeconfig()"
+    },
+    {
+      "label": "wait_for_k3s_api()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L82",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_wait_for_k3s_api",
+      "community": 0,
+      "norm_label": "wait_for_k3s_api()"
+    },
+    {
+      "label": "install_k3d_local()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L98",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_install_k3d_local",
+      "community": 0,
+      "norm_label": "install_k3d_local()"
+    },
+    {
+      "label": "sync_k3s_kubeconfig()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L109",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_sync_k3s_kubeconfig",
+      "community": 0,
+      "norm_label": "sync_k3s_kubeconfig()"
+    },
+    {
+      "label": "disable_swap_for_kubernetes()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L125",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_disable_swap_for_kubernetes",
+      "community": 0,
+      "norm_label": "disable_swap_for_kubernetes()"
+    },
+    {
+      "label": "apply_registry_manifest()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L141",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_apply_registry_manifest",
+      "community": 0,
+      "norm_label": "apply_registry_manifest()"
+    },
+    {
+      "label": "configure_k3s_registries()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L187",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_configure_k3s_registries",
+      "community": 0,
+      "norm_label": "configure_k3s_registries()"
+    },
+    {
+      "label": "k3s_cluster_healthy()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L202",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_k3s_cluster_healthy",
+      "community": 0,
+      "norm_label": "k3s_cluster_healthy()"
+    },
+    {
+      "label": "repair_k3s_kubelet_sysctls_if_needed()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L209",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_repair_k3s_kubelet_sysctls_if_needed",
+      "community": 0,
+      "norm_label": "repair_k3s_kubelet_sysctls_if_needed()"
+    },
+    {
+      "label": "setup_k3d_cluster()",
+      "file_type": "code",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L225",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_02_kubernetes_setup_k3d_cluster",
+      "community": 0,
+      "norm_label": "setup_k3d_cluster()"
+    },
+    {
+      "label": "03-gpu-plugin.sh",
+      "file_type": "code",
+      "source_file": "scripts/03-gpu-plugin.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_03_gpu_plugin",
+      "community": 21,
+      "norm_label": "03-gpu-plugin.sh"
+    },
+    {
+      "label": "03-gpu-plugin.sh script",
+      "file_type": "code",
+      "source_file": "scripts/03-gpu-plugin.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_03_gpu_plugin_sh__entry",
+      "community": 21,
+      "norm_label": "03-gpu-plugin.sh script"
+    },
+    {
+      "label": "KUBECONFIG",
+      "file_type": "code",
+      "source_file": "scripts/03-gpu-plugin.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_03_gpu_plugin_kubeconfig",
+      "community": 21,
+      "norm_label": "kubeconfig"
+    },
+    {
+      "label": "04-platform.sh",
+      "file_type": "code",
+      "source_file": "scripts/04-platform.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_04_platform",
+      "community": 16,
+      "norm_label": "04-platform.sh"
+    },
+    {
+      "label": "04-platform.sh script",
+      "file_type": "code",
+      "source_file": "scripts/04-platform.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_04_platform_sh__entry",
+      "community": 16,
+      "norm_label": "04-platform.sh script"
+    },
+    {
+      "label": "KUBECONFIG",
+      "file_type": "code",
+      "source_file": "scripts/04-platform.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_04_platform_kubeconfig",
+      "community": 16,
+      "norm_label": "kubeconfig"
+    },
+    {
+      "label": "MY_IP",
+      "file_type": "code",
+      "source_file": "scripts/04-platform.sh",
+      "source_location": "L7",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_04_platform_my_ip",
+      "community": 16,
+      "norm_label": "my_ip"
+    },
+    {
+      "label": "05a-cluster-forge.sh",
+      "file_type": "code",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_05a_cluster_forge",
+      "community": 15,
+      "norm_label": "05a-cluster-forge.sh"
+    },
+    {
+      "label": "KUBECONFIG",
+      "file_type": "code",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_05a_cluster_forge_kubeconfig",
+      "community": 15,
+      "norm_label": "kubeconfig"
+    },
+    {
+      "label": "PATH",
+      "file_type": "code",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L7",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_05a_cluster_forge_path",
+      "community": 15,
+      "norm_label": "path"
+    },
+    {
+      "label": "MY_IP",
+      "file_type": "code",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L8",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_05a_cluster_forge_my_ip",
+      "community": 15,
+      "norm_label": "my_ip"
+    },
+    {
+      "label": "DOMAIN",
+      "file_type": "code",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L9",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_05a_cluster_forge_domain",
+      "community": 15,
+      "norm_label": "domain"
+    },
+    {
+      "label": "05b-kaiwo.sh",
+      "file_type": "code",
+      "source_file": "scripts/05b-kaiwo.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_05b_kaiwo",
+      "community": 17,
+      "norm_label": "05b-kaiwo.sh"
+    },
+    {
+      "label": "05b-kaiwo.sh script",
+      "file_type": "code",
+      "source_file": "scripts/05b-kaiwo.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_05b_kaiwo_sh__entry",
+      "community": 17,
+      "norm_label": "05b-kaiwo.sh script"
+    },
+    {
+      "label": "KUBECONFIG",
+      "file_type": "code",
+      "source_file": "scripts/05b-kaiwo.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_05b_kaiwo_kubeconfig",
+      "community": 17,
+      "norm_label": "kubeconfig"
+    },
+    {
+      "label": "PATH",
+      "file_type": "code",
+      "source_file": "scripts/05b-kaiwo.sh",
+      "source_location": "L7",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_05b_kaiwo_path",
+      "community": 17,
+      "norm_label": "path"
+    },
+    {
+      "label": "06a-aim-engine.sh",
+      "file_type": "code",
+      "source_file": "scripts/06a-aim-engine.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_06a_aim_engine",
+      "community": 22,
+      "norm_label": "06a-aim-engine.sh"
+    },
+    {
+      "label": "06a-aim-engine.sh script",
+      "file_type": "code",
+      "source_file": "scripts/06a-aim-engine.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_06a_aim_engine_sh__entry",
+      "community": 22,
+      "norm_label": "06a-aim-engine.sh script"
+    },
+    {
+      "label": "KUBECONFIG",
+      "file_type": "code",
+      "source_file": "scripts/06a-aim-engine.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_06a_aim_engine_kubeconfig",
+      "community": 22,
+      "norm_label": "kubeconfig"
+    },
+    {
+      "label": "06b-airm-workbench.sh",
+      "file_type": "code",
+      "source_file": "scripts/06b-airm-workbench.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_06b_airm_workbench",
+      "community": 23,
+      "norm_label": "06b-airm-workbench.sh"
+    },
+    {
+      "label": "KUBECONFIG",
+      "file_type": "code",
+      "source_file": "scripts/06b-airm-workbench.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_06b_airm_workbench_kubeconfig",
+      "community": 23,
+      "norm_label": "kubeconfig"
+    },
+    {
+      "label": "DOMAIN",
+      "file_type": "code",
+      "source_file": "scripts/06b-airm-workbench.sh",
+      "source_location": "L7",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_06b_airm_workbench_domain",
+      "community": 23,
+      "norm_label": "domain"
+    },
+    {
+      "label": "07-llama-cpp.sh",
+      "file_type": "code",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_07_llama_cpp",
+      "community": 14,
+      "norm_label": "07-llama-cpp.sh"
+    },
+    {
+      "label": "07-llama-cpp.sh script",
+      "file_type": "code",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_07_llama_cpp_sh__entry",
+      "community": 14,
+      "norm_label": "07-llama-cpp.sh script"
+    },
+    {
+      "label": "PATH",
+      "file_type": "code",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_07_llama_cpp_path",
+      "community": 14,
+      "norm_label": "path"
+    },
+    {
+      "label": "KUBECONFIG",
+      "file_type": "code",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L8",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_07_llama_cpp_kubeconfig",
+      "community": 14,
+      "norm_label": "kubeconfig"
+    },
+    {
+      "label": "MY_IP",
+      "file_type": "code",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L9",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_07_llama_cpp_my_ip",
+      "community": 14,
+      "norm_label": "my_ip"
+    },
+    {
+      "label": "fetch-study-sources.sh",
+      "file_type": "code",
+      "source_file": "scripts/fetch-study-sources.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_fetch_study_sources",
+      "community": 19,
+      "norm_label": "fetch-study-sources.sh"
+    },
+    {
+      "label": "clone_depth1()",
+      "file_type": "code",
+      "source_file": "scripts/fetch-study-sources.sh",
+      "source_location": "L13",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_fetch_study_sources_clone_depth1",
+      "community": 19,
+      "norm_label": "clone_depth1()"
+    },
+    {
+      "label": "pull_oci_chart()",
+      "file_type": "code",
+      "source_file": "scripts/fetch-study-sources.sh",
+      "source_location": "L27",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_fetch_study_sources_pull_oci_chart",
+      "community": 19,
+      "norm_label": "pull_oci_chart()"
+    },
+    {
+      "label": "create_private_stub()",
+      "file_type": "code",
+      "source_file": "scripts/fetch-study-sources.sh",
+      "source_location": "L42",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_fetch_study_sources_create_private_stub",
+      "community": 19,
+      "norm_label": "create_private_stub()"
+    },
+    {
+      "label": "graphify-all.sh",
+      "file_type": "code",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_graphify_all",
+      "community": 10,
+      "norm_label": "graphify-all.sh"
+    },
+    {
+      "label": "graphify-all.sh script",
+      "file_type": "code",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_graphify_all_sh__entry",
+      "community": 10,
+      "norm_label": "graphify-all.sh script"
+    },
+    {
+      "label": "PYTHONUNBUFFERED",
+      "file_type": "code",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L13",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_graphify_all_pythonunbuffered",
+      "community": 10,
+      "norm_label": "pythonunbuffered"
+    },
+    {
+      "label": "OLLAMA_API_KEY",
+      "file_type": "code",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L14",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_graphify_all_ollama_api_key",
+      "community": 10,
+      "norm_label": "ollama_api_key"
+    },
+    {
+      "label": "GRAPHIFY_OLLAMA_KEEP_ALIVE",
+      "file_type": "code",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L15",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_graphify_all_graphify_ollama_keep_alive",
+      "community": 10,
+      "norm_label": "graphify_ollama_keep_alive"
+    },
+    {
+      "label": "GRAPHIFY_OLLAMA_NUM_CTX",
+      "file_type": "code",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L17",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_graphify_all_graphify_ollama_num_ctx",
+      "community": 10,
+      "norm_label": "graphify_ollama_num_ctx"
+    },
+    {
+      "label": "common.sh",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "lib_common",
+      "community": 1,
+      "norm_label": "common.sh"
+    },
+    {
+      "label": "common.sh script",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_lib_common_sh__entry",
+      "community": 1,
+      "norm_label": "common.sh script"
+    },
+    {
+      "label": "PATH",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L8",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "lib_common_path",
+      "community": 1,
+      "norm_label": "path"
+    },
+    {
+      "label": "EAI_FORCE_REBUILD",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L9",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "lib_common_eai_force_rebuild",
+      "community": 1,
+      "norm_label": "eai_force_rebuild"
+    },
+    {
+      "label": "log_source_tree()",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L14",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_common_log_source_tree",
+      "community": 1,
+      "norm_label": "log_source_tree()"
+    },
+    {
+      "label": "check_disk_before_step()",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L34",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_common_check_disk_before_step",
+      "community": 1,
+      "norm_label": "check_disk_before_step()"
+    },
+    {
+      "label": "activate_venv()",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L39",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_common_activate_venv",
+      "community": 1,
+      "norm_label": "activate_venv()"
+    },
+    {
+      "label": "my_ip()",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L44",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_common_my_ip",
+      "community": 1,
+      "norm_label": "my_ip()"
+    },
+    {
+      "label": "domain()",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L48",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_common_domain",
+      "community": 1,
+      "norm_label": "domain()"
+    },
+    {
+      "label": "eai_backup_init()",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L53",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_common_eai_backup_init",
+      "community": 1,
+      "norm_label": "eai_backup_init()"
+    },
+    {
+      "label": "eai_backup_file()",
+      "file_type": "code",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L60",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_common_eai_backup_file",
+      "community": 1,
+      "norm_label": "eai_backup_file()"
+    },
+    {
+      "label": "disk-report.sh",
+      "file_type": "code",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "lib_disk_report",
+      "community": 1,
+      "norm_label": "disk-report.sh"
+    },
+    {
+      "label": "disk-report.sh script",
+      "file_type": "code",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_lib_disk_report_sh__entry",
+      "community": 1,
+      "norm_label": "disk-report.sh script"
+    },
+    {
+      "label": "root_used_bytes()",
+      "file_type": "code",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L13",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_disk_report_root_used_bytes",
+      "community": 1,
+      "norm_label": "root_used_bytes()"
+    },
+    {
+      "label": "snapshot()",
+      "file_type": "code",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L17",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_disk_report_snapshot",
+      "community": 1,
+      "norm_label": "snapshot()"
+    },
+    {
+      "label": "force-build.sh",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "lib_force_build",
+      "community": 3,
+      "norm_label": "force-build.sh"
+    },
+    {
+      "label": "force-build.sh script",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_lib_force_build_sh__entry",
+      "community": 3,
+      "norm_label": "force-build.sh script"
+    },
+    {
+      "label": "eai_force_enabled()",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L8",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_force_build_eai_force_enabled",
+      "community": 3,
+      "norm_label": "eai_force_enabled()"
+    },
+    {
+      "label": "fresh_git_clone()",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L12",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_force_build_fresh_git_clone",
+      "community": 3,
+      "norm_label": "fresh_git_clone()"
+    },
+    {
+      "label": "force_remove_cmake_build()",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L32",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_force_build_force_remove_cmake_build",
+      "community": 3,
+      "norm_label": "force_remove_cmake_build()"
+    },
+    {
+      "label": "force_docker_build()",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L40",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_force_build_force_docker_build",
+      "community": 3,
+      "norm_label": "force_docker_build()"
+    },
+    {
+      "label": "force_helm_reinstall()",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L51",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_force_build_force_helm_reinstall",
+      "community": 3,
+      "norm_label": "force_helm_reinstall()"
+    },
+    {
+      "label": "force_apt_reinstall()",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L61",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_force_build_force_apt_reinstall",
+      "community": 3,
+      "norm_label": "force_apt_reinstall()"
+    },
+    {
+      "label": "force_go_build()",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L75",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_force_build_force_go_build",
+      "community": 3,
+      "norm_label": "force_go_build()"
+    },
+    {
+      "label": "force_k3s_reinstall()",
+      "file_type": "code",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L82",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "lib_force_build_force_k3s_reinstall",
+      "community": 3,
+      "norm_label": "force_k3s_reinstall()"
+    },
+    {
+      "label": "install-build-tools.sh",
+      "file_type": "code",
+      "source_file": "scripts/lib/install-build-tools.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "lib_install_build_tools",
+      "community": 26,
+      "norm_label": "install-build-tools.sh"
+    },
+    {
+      "label": "PATH",
+      "file_type": "code",
+      "source_file": "scripts/lib/install-build-tools.sh",
+      "source_location": "L23",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "lib_install_build_tools_path",
+      "community": 26,
+      "norm_label": "path"
+    },
+    {
+      "label": "run-all.sh",
+      "file_type": "code",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_run_all",
+      "community": 11,
+      "norm_label": "run-all.sh"
+    },
+    {
+      "label": "run-all.sh script",
+      "file_type": "code",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "home_magnus_projects_amdeai_scripts_run_all_sh__entry",
+      "community": 11,
+      "norm_label": "run-all.sh script"
+    },
+    {
+      "label": "EAI_FORCE_REBUILD",
+      "file_type": "code",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L5",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_run_all_eai_force_rebuild",
+      "community": 11,
+      "norm_label": "eai_force_rebuild"
+    },
+    {
+      "label": "EAI_GRUB_APPLY_GUIDE_VALUES",
+      "file_type": "code",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_run_all_eai_grub_apply_guide_values",
+      "community": 11,
+      "norm_label": "eai_grub_apply_guide_values"
+    },
+    {
+      "label": "EAI_MIN_FREE_GB",
+      "file_type": "code",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L8",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "id": "scripts_run_all_eai_min_free_gb",
+      "community": 11,
+      "norm_label": "eai_min_free_gb"
+    },
+    {
+      "label": "run_step()",
+      "file_type": "code",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L10",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "id": "scripts_run_all_run_step",
+      "community": 11,
+      "norm_label": "run_step()"
+    },
+    {
+      "label": "conftest.py",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L1",
+      "id": "tests_conftest",
+      "community": 2,
+      "norm_label": "conftest.py"
+    },
+    {
+      "label": "eai_build()",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L14",
+      "id": "tests_conftest_eai_build",
+      "community": 2,
+      "norm_label": "eai_build()"
+    },
+    {
+      "label": "Path",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L14",
+      "id": "path",
+      "community": 2,
+      "norm_label": "path"
+    },
+    {
+      "label": "my_ip()",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L19",
+      "id": "tests_conftest_my_ip",
+      "community": 2,
+      "norm_label": "my_ip()"
+    },
+    {
+      "label": "str",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L19",
+      "id": "tests_conftest_py_str",
+      "community": 2,
+      "norm_label": "str"
+    },
+    {
+      "label": "domain()",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L25",
+      "id": "tests_conftest_domain",
+      "community": 2,
+      "norm_label": "domain()"
+    },
+    {
+      "label": "k8s_available()",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L30",
+      "id": "tests_conftest_k8s_available",
+      "community": 2,
+      "norm_label": "k8s_available()"
+    },
+    {
+      "label": "bool",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L30",
+      "id": "bool",
+      "community": 2,
+      "norm_label": "bool"
+    },
+    {
+      "label": "skip_without_k8s()",
+      "file_type": "code",
+      "source_file": "tests/conftest.py",
+      "source_location": "L44",
+      "id": "tests_conftest_skip_without_k8s",
+      "community": 2,
+      "norm_label": "skip_without_k8s()"
+    },
+    {
+      "label": "Shared pytest fixtures for EAI suite validation.",
+      "file_type": "rationale",
+      "source_file": "tests/conftest.py",
+      "source_location": "L1",
+      "id": "tests_conftest_rationale_1",
+      "community": 2,
+      "norm_label": "shared pytest fixtures for eai suite validation."
+    },
+    {
+      "label": "conftest.py",
+      "file_type": "code",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L1",
+      "id": "e2e_conftest",
+      "community": 4,
+      "norm_label": "conftest.py"
+    },
+    {
+      "label": "argocd_password()",
+      "file_type": "code",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L12",
+      "id": "e2e_conftest_argocd_password",
+      "community": 4,
+      "norm_label": "argocd_password()"
+    },
+    {
+      "label": "str",
+      "file_type": "code",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L12",
+      "id": "tests_e2e_conftest_py_str",
+      "community": 4,
+      "norm_label": "str"
+    },
+    {
+      "label": "airm_password()",
+      "file_type": "code",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L33",
+      "id": "e2e_conftest_airm_password",
+      "community": 4,
+      "norm_label": "airm_password()"
+    },
+    {
+      "label": "keycloak_password()",
+      "file_type": "code",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L54",
+      "id": "e2e_conftest_keycloak_password",
+      "community": 4,
+      "norm_label": "keycloak_password()"
+    },
+    {
+      "label": "Browser",
+      "file_type": "code",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L75",
+      "id": "browser",
+      "community": 4,
+      "norm_label": "browser"
+    },
+    {
+      "label": "BrowserContext",
+      "file_type": "code",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L75",
+      "id": "browsercontext",
+      "community": 4,
+      "norm_label": "browsercontext"
+    },
+    {
+      "label": "page()",
+      "file_type": "code",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L82",
+      "id": "e2e_conftest_page",
+      "community": 4,
+      "norm_label": "page()"
+    },
+    {
+      "label": "Playwright fixtures for EAI web UIs.",
+      "file_type": "rationale",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L1",
+      "id": "e2e_conftest_rationale_1",
+      "community": 4,
+      "norm_label": "playwright fixtures for eai web uis."
+    },
+    {
+      "label": "test_airm_ui.py",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L1",
+      "id": "e2e_test_airm_ui",
+      "community": 13,
+      "norm_label": "test_airm_ui.py"
+    },
+    {
+      "label": "test_airm_login()",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L9",
+      "id": "e2e_test_airm_ui_test_airm_login",
+      "community": 13,
+      "norm_label": "test_airm_login()"
+    },
+    {
+      "label": "Page",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L9",
+      "id": "tests_e2e_test_airm_ui_py_page",
+      "community": 13,
+      "norm_label": "page"
+    },
+    {
+      "label": "str",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L9",
+      "id": "tests_e2e_test_airm_ui_py_str",
+      "community": 13,
+      "norm_label": "str"
+    },
+    {
+      "label": "E2E: AMD Resource Manager UI.",
+      "file_type": "rationale",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L1",
+      "id": "e2e_test_airm_ui_rationale_1",
+      "community": 13,
+      "norm_label": "e2e: amd resource manager ui."
+    },
+    {
+      "label": "test_aiwb_ui.py",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L1",
+      "id": "e2e_test_aiwb_ui",
+      "community": 7,
+      "norm_label": "test_aiwb_ui.py"
+    },
+    {
+      "label": "test_keycloak_login()",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L9",
+      "id": "e2e_test_aiwb_ui_test_keycloak_login",
+      "community": 7,
+      "norm_label": "test_keycloak_login()"
+    },
+    {
+      "label": "Page",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L9",
+      "id": "tests_e2e_test_aiwb_ui_py_page",
+      "community": 7,
+      "norm_label": "page"
+    },
+    {
+      "label": "str",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L9",
+      "id": "tests_e2e_test_aiwb_ui_py_str",
+      "community": 7,
+      "norm_label": "str"
+    },
+    {
+      "label": "test_models_page_gemma()",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L20",
+      "id": "e2e_test_aiwb_ui_test_models_page_gemma",
+      "community": 7,
+      "norm_label": "test_models_page_gemma()"
+    },
+    {
+      "label": "E2E: AMD AI Workbench UI.",
+      "file_type": "rationale",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L1",
+      "id": "e2e_test_aiwb_ui_rationale_1",
+      "community": 7,
+      "norm_label": "e2e: amd ai workbench ui."
+    },
+    {
+      "label": "test_argocd_ui.py",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L1",
+      "id": "e2e_test_argocd_ui",
+      "community": 8,
+      "norm_label": "test_argocd_ui.py"
+    },
+    {
+      "label": "test_login()",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L12",
+      "id": "e2e_test_argocd_ui_test_login",
+      "community": 8,
+      "norm_label": "test_login()"
+    },
+    {
+      "label": "Page",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L12",
+      "id": "tests_e2e_test_argocd_ui_py_page",
+      "community": 8,
+      "norm_label": "page"
+    },
+    {
+      "label": "str",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L12",
+      "id": "tests_e2e_test_argocd_ui_py_str",
+      "community": 8,
+      "norm_label": "str"
+    },
+    {
+      "label": "test_applications_visible()",
+      "file_type": "code",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L23",
+      "id": "e2e_test_argocd_ui_test_applications_visible",
+      "community": 8,
+      "norm_label": "test_applications_visible()"
+    },
+    {
+      "label": "E2E: Argo CD UI (requires port-forward to localhost:8443).",
+      "file_type": "rationale",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L1",
+      "id": "e2e_test_argocd_ui_rationale_1",
+      "community": 8,
+      "norm_label": "e2e: argo cd ui (requires port-forward to localhost:8443)."
+    },
+    {
+      "label": "test_aim_engine_operator.py",
+      "file_type": "code",
+      "source_file": "tests/integration/test_aim_engine_operator.py",
+      "source_location": "L1",
+      "id": "integration_test_aim_engine_operator",
+      "community": 6,
+      "norm_label": "test_aim_engine_operator.py"
+    },
+    {
+      "label": "test_aimmodel_cr_accepted()",
+      "file_type": "code",
+      "source_file": "tests/integration/test_aim_engine_operator.py",
+      "source_location": "L21",
+      "id": "integration_test_aim_engine_operator_test_aimmodel_cr_accepted",
+      "community": 6,
+      "norm_label": "test_aimmodel_cr_accepted()"
+    },
+    {
+      "label": "Integration: AIM Engine operator and AIMModel CR.",
+      "file_type": "rationale",
+      "source_file": "tests/integration/test_aim_engine_operator.py",
+      "source_location": "L1",
+      "id": "integration_test_aim_engine_operator_rationale_1",
+      "community": 6,
+      "norm_label": "integration: aim engine operator and aimmodel cr."
+    },
+    {
+      "label": "test_gpu_scheduling.py",
+      "file_type": "code",
+      "source_file": "tests/integration/test_gpu_scheduling.py",
+      "source_location": "L1",
+      "id": "integration_test_gpu_scheduling",
+      "community": 18,
+      "norm_label": "test_gpu_scheduling.py"
+    },
+    {
+      "label": "test_node_labels()",
+      "file_type": "code",
+      "source_file": "tests/integration/test_gpu_scheduling.py",
+      "source_location": "L20",
+      "id": "integration_test_gpu_scheduling_test_node_labels",
+      "community": 18,
+      "norm_label": "test_node_labels()"
+    },
+    {
+      "label": "test_gpu_pod_schedulable()",
+      "file_type": "code",
+      "source_file": "tests/integration/test_gpu_scheduling.py",
+      "source_location": "L31",
+      "id": "integration_test_gpu_scheduling_test_gpu_pod_schedulable",
+      "community": 18,
+      "norm_label": "test_gpu_pod_schedulable()"
+    },
+    {
+      "label": "Integration: GPU labels and schedulable pod.",
+      "file_type": "rationale",
+      "source_file": "tests/integration/test_gpu_scheduling.py",
+      "source_location": "L1",
+      "id": "integration_test_gpu_scheduling_rationale_1",
+      "community": 18,
+      "norm_label": "integration: gpu labels and schedulable pod."
+    },
+    {
+      "label": "test_kaiwo_operator.py",
+      "file_type": "code",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L1",
+      "id": "integration_test_kaiwo_operator",
+      "community": 6,
+      "norm_label": "test_kaiwo_operator.py"
+    },
+    {
+      "label": "test_operator_ready()",
+      "file_type": "code",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L9",
+      "id": "integration_test_kaiwo_operator_test_operator_ready",
+      "community": 6,
+      "norm_label": "test_operator_ready()"
+    },
+    {
+      "label": "test_resource_flavor_exists()",
+      "file_type": "code",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L28",
+      "id": "integration_test_kaiwo_operator_test_resource_flavor_exists",
+      "community": 6,
+      "norm_label": "test_resource_flavor_exists()"
+    },
+    {
+      "label": "test_cluster_queue_exists()",
+      "file_type": "code",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L37",
+      "id": "integration_test_kaiwo_operator_test_cluster_queue_exists",
+      "community": 6,
+      "norm_label": "test_cluster_queue_exists()"
+    },
+    {
+      "label": "Integration: Kaiwo operator and Kueue resources.",
+      "file_type": "rationale",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L1",
+      "id": "integration_test_kaiwo_operator_rationale_1",
+      "community": 6,
+      "norm_label": "integration: kaiwo operator and kueue resources."
+    },
+    {
+      "label": "AMD Enterprise AI Suite \u2014 Z13 (amdeai)",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "README_md_amdeai",
+      "community": 25,
+      "norm_label": "amd enterprise ai suite \u2014 z13 (amdeai)"
+    },
+    {
+      "label": "AMD Enterprise AI Suite \u2014 Build From Source Guide",
+      "file_type": "document",
+      "source_file": "eai-suite-z13-guide.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "eai_suite_z13_guide_md_amdeai",
+      "community": 25,
+      "norm_label": "amd enterprise ai suite \u2014 build from source guide"
+    },
+    {
+      "label": "End-to-end call flow: chat prompt \u2192 hardware \u2192 response",
+      "file_type": "document",
+      "source_file": "docs/CALL_FLOW_OVERVIEW.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "docs_call_flow_overview_md",
+      "community": 5,
+      "norm_label": "end-to-end call flow: chat prompt \u2192 hardware \u2192 response"
+    },
+    {
+      "label": "AMD Enterprise AI Suite \u2014 Stack Overview",
+      "file_type": "document",
+      "source_file": "docs/OVERVIEW.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "docs_overview_md",
+      "community": 5,
+      "norm_label": "amd enterprise ai suite \u2014 stack overview"
+    },
+    {
+      "label": "Call flow: prerequisites (build toolchain)",
+      "file_type": "document",
+      "source_file": "docs/call-flows/00-prerequisites.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "docs_call_flows_00_prerequisites_md",
+      "community": 5,
+      "norm_label": "call flow: prerequisites (build toolchain)"
+    },
+    {
+      "label": "Call flow: ROCm + host kernel (memory and compute substrate)",
+      "file_type": "document",
+      "source_file": "docs/call-flows/01-rocm-host.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "docs_call_flows_01_rocm_host_md",
+      "community": 5,
+      "norm_label": "call flow: rocm + host kernel (memory and compute substrate)"
+    },
+    {
+      "label": "Call flow: k3s (Kubernetes runtime)",
+      "file_type": "document",
+      "source_file": "docs/call-flows/02-k3s.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "docs_call_flows_02_k3s_md",
+      "community": 5,
+      "norm_label": "call flow: k3s (kubernetes runtime)"
+    },
+    {
+      "label": "Call flow: ROCm/k8s-device-plugin",
+      "file_type": "document",
+      "source_file": "docs/call-flows/03-k8s-device-plugin.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "docs_call_flows_03_k8s_device_plugin_md",
+      "community": 5,
+      "norm_label": "call flow: rocm/k8s-device-plugin"
+    },
+    {
+      "label": "Call flow: Layer 4 platform (Helm charts)",
+      "file_type": "document",
+      "source_file": "docs/call-flows/04-platform.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "docs_call_flows_04_platform_md",
+      "community": 5,
+      "norm_label": "call flow: layer 4 platform (helm charts)"
+    },
+    {
+      "label": "Call flow: silogen/cluster-forge",
+      "file_type": "document",
+      "source_file": "docs/call-flows/05a-cluster-forge.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "docs_call_flows_05a_cluster_forge_md",
+      "community": 5,
+      "norm_label": "call flow: silogen/cluster-forge"
+    },
+    {
+      "label": "Call flow: silogen/kaiwo",
+      "file_type": "document",
+      "source_file": "docs/call-flows/05b-kaiwo.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "call-flows_05b-kaiwo",
+      "community": 12,
+      "norm_label": "call flow: silogen/kaiwo"
+    },
+    {
+      "label": "Call flow: amd-enterprise-ai/aim-engine",
+      "file_type": "document",
+      "source_file": "docs/call-flows/06a-aim-engine.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "call-flows_06a-aim-engine",
+      "community": 12,
+      "norm_label": "call flow: amd-enterprise-ai/aim-engine"
+    },
+    {
+      "label": "Call flow: AMD AI Workbench + AIRM (UI and control plane)",
+      "file_type": "document",
+      "source_file": "docs/call-flows/06b-airm-aiwb.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "call-flows_06b-airm-aiwb",
+      "community": 12,
+      "norm_label": "call flow: amd ai workbench + airm (ui and control plane)"
+    },
+    {
+      "label": "Call flow: ggml-org/llama.cpp (inference hot path)",
+      "file_type": "document",
+      "source_file": "docs/call-flows/07-llama-cpp.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "call-flows_07-llama-cpp",
+      "community": 12,
+      "norm_label": "call flow: ggml-org/llama.cpp (inference hot path)"
+    },
+    {
+      "label": "requirements.txt for tests",
+      "file_type": "document",
+      "source_file": "tests/requirements.txt",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tests_requirements_txt",
+      "community": 12,
+      "norm_label": "requirements.txt for tests"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".vscode/settings.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "vscode_settings",
+      "target": "vscode_settings_python_defaultinterpreterpath",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".vscode/settings.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "vscode_settings",
+      "target": "vscode_settings_python_terminal_activateenvironment",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/00-prerequisites.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_00_prerequisites",
+      "target": "home_magnus_projects_amdeai_scripts_00_prerequisites_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/00-prerequisites.sh",
+      "source_location": "L76",
+      "weight": 1.0,
+      "source": "scripts_00_prerequisites",
+      "target": "scripts_00_prerequisites_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_01_host_rocm",
+      "target": "home_magnus_projects_amdeai_scripts_01_host_rocm_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "scripts_01_host_rocm",
+      "target": "scripts_01_host_rocm_eai_grub_guide_gtt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "scripts_01_host_rocm",
+      "target": "scripts_01_host_rocm_eai_grub_guide_ttm",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "scripts_01_host_rocm",
+      "target": "scripts_01_host_rocm_merge_grub_cmdline",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/01-host-rocm.sh",
+      "source_location": "L139",
+      "weight": 1.0,
+      "source": "scripts_01_host_rocm",
+      "target": "scripts_01_host_rocm_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L141",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_apply_registry_manifest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L76",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_backup_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_check_registry_nodeport_free",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L187",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_configure_k3s_registries",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L125",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_disable_swap_for_kubernetes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L98",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_install_k3d_local",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L202",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_k3s_cluster_healthy",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_kube_owner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_kube_user_home",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_kubectl_k3s",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_my_ip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L44",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_preflight_kubernetes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L209",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_repair_k3s_kubelet_sysctls_if_needed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L246",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_setup_k3d_cluster",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L109",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_sync_k3s_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "scripts_02_kubernetes",
+      "target": "scripts_02_kubernetes_wait_for_k3s_api",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L205",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_k3s_cluster_healthy",
+      "target": "scripts_02_kubernetes_kubectl_k3s",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L86",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_wait_for_k3s_api",
+      "target": "scripts_02_kubernetes_kubectl_k3s",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L142",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_apply_registry_manifest",
+      "target": "scripts_02_kubernetes_check_registry_nodeport_free",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L227",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_check_registry_nodeport_free",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L112",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_sync_k3s_kubeconfig",
+      "target": "scripts_02_kubernetes_backup_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L199",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_configure_k3s_registries",
+      "target": "scripts_02_kubernetes_wait_for_k3s_api",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L222",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_repair_k3s_kubelet_sysctls_if_needed",
+      "target": "scripts_02_kubernetes_wait_for_k3s_api",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L266",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_wait_for_k3s_api",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L226",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_install_k3d_local",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L253",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_sync_k3s_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L247",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_disable_swap_for_kubernetes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L254",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_apply_registry_manifest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L255",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_configure_k3s_registries",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L251",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_k3s_cluster_healthy",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/02-kubernetes.sh",
+      "source_location": "L248",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_02_kubernetes_setup_k3d_cluster",
+      "target": "scripts_02_kubernetes_repair_k3s_kubelet_sysctls_if_needed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/03-gpu-plugin.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_03_gpu_plugin",
+      "target": "home_magnus_projects_amdeai_scripts_03_gpu_plugin_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/03-gpu-plugin.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "scripts_03_gpu_plugin",
+      "target": "scripts_03_gpu_plugin_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/04-platform.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_04_platform",
+      "target": "home_magnus_projects_amdeai_scripts_04_platform_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/04-platform.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "scripts_04_platform",
+      "target": "scripts_04_platform_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/04-platform.sh",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "scripts_04_platform",
+      "target": "scripts_04_platform_my_ip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "scripts_05a_cluster_forge",
+      "target": "scripts_05a_cluster_forge_domain",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "scripts_05a_cluster_forge",
+      "target": "scripts_05a_cluster_forge_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "scripts_05a_cluster_forge",
+      "target": "scripts_05a_cluster_forge_my_ip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/05a-cluster-forge.sh",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "scripts_05a_cluster_forge",
+      "target": "scripts_05a_cluster_forge_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/05b-kaiwo.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_05b_kaiwo",
+      "target": "home_magnus_projects_amdeai_scripts_05b_kaiwo_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/05b-kaiwo.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "scripts_05b_kaiwo",
+      "target": "scripts_05b_kaiwo_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/05b-kaiwo.sh",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "scripts_05b_kaiwo",
+      "target": "scripts_05b_kaiwo_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/06a-aim-engine.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_06a_aim_engine",
+      "target": "home_magnus_projects_amdeai_scripts_06a_aim_engine_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/06a-aim-engine.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "scripts_06a_aim_engine",
+      "target": "scripts_06a_aim_engine_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/06b-airm-workbench.sh",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "scripts_06b_airm_workbench",
+      "target": "scripts_06b_airm_workbench_domain",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/06b-airm-workbench.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "scripts_06b_airm_workbench",
+      "target": "scripts_06b_airm_workbench_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_07_llama_cpp",
+      "target": "home_magnus_projects_amdeai_scripts_07_llama_cpp_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "scripts_07_llama_cpp",
+      "target": "scripts_07_llama_cpp_kubeconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "scripts_07_llama_cpp",
+      "target": "scripts_07_llama_cpp_my_ip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/07-llama-cpp.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "scripts_07_llama_cpp",
+      "target": "scripts_07_llama_cpp_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/fetch-study-sources.sh",
+      "source_location": "L13",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_fetch_study_sources",
+      "target": "scripts_fetch_study_sources_clone_depth1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/fetch-study-sources.sh",
+      "source_location": "L42",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_fetch_study_sources",
+      "target": "scripts_fetch_study_sources_create_private_stub",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/fetch-study-sources.sh",
+      "source_location": "L27",
+      "weight": 1.0,
+      "context": "call",
+      "source": "scripts_fetch_study_sources",
+      "target": "scripts_fetch_study_sources_pull_oci_chart",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_graphify_all",
+      "target": "home_magnus_projects_amdeai_scripts_graphify_all_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "scripts_graphify_all",
+      "target": "scripts_graphify_all_graphify_ollama_keep_alive",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "scripts_graphify_all",
+      "target": "scripts_graphify_all_graphify_ollama_num_ctx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "scripts_graphify_all",
+      "target": "scripts_graphify_all_ollama_api_key",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/graphify-all.sh",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "scripts_graphify_all",
+      "target": "scripts_graphify_all_pythonunbuffered",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "home_magnus_projects_amdeai_scripts_lib_common_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_activate_venv",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_check_disk_before_step",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_domain",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_eai_backup_file",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L53",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_eai_backup_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_eai_force_rebuild",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_log_source_tree",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_my_ip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_common_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/common.sh",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "lib_common",
+      "target": "lib_disk_report",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "lib_disk_report",
+      "target": "home_magnus_projects_amdeai_scripts_lib_disk_report_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "lib_disk_report",
+      "target": "lib_disk_report_root_used_bytes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "lib_disk_report",
+      "target": "lib_disk_report_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L42",
+      "weight": 1.0,
+      "context": "call",
+      "source": "home_magnus_projects_amdeai_scripts_lib_disk_report_sh__entry",
+      "target": "lib_disk_report_root_used_bytes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L44",
+      "weight": 1.0,
+      "context": "call",
+      "source": "home_magnus_projects_amdeai_scripts_lib_disk_report_sh__entry",
+      "target": "lib_disk_report_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/disk-report.sh",
+      "source_location": "L21",
+      "weight": 1.0,
+      "context": "call",
+      "source": "lib_disk_report_snapshot",
+      "target": "lib_disk_report_root_used_bytes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "home_magnus_projects_amdeai_scripts_lib_force_build_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "lib_force_build_eai_force_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "lib_force_build_force_apt_reinstall",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "lib_force_build_force_docker_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L75",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "lib_force_build_force_go_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "lib_force_build_force_helm_reinstall",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "lib_force_build_force_k3s_reinstall",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "lib_force_build_force_remove_cmake_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "lib_force_build",
+      "target": "lib_force_build_fresh_git_clone",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L67",
+      "weight": 1.0,
+      "context": "call",
+      "source": "lib_force_build_force_apt_reinstall",
+      "target": "lib_force_build_eai_force_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L43",
+      "weight": 1.0,
+      "context": "call",
+      "source": "lib_force_build_force_docker_build",
+      "target": "lib_force_build_eai_force_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L54",
+      "weight": 1.0,
+      "context": "call",
+      "source": "lib_force_build_force_helm_reinstall",
+      "target": "lib_force_build_eai_force_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L83",
+      "weight": 1.0,
+      "context": "call",
+      "source": "lib_force_build_force_k3s_reinstall",
+      "target": "lib_force_build_eai_force_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L34",
+      "weight": 1.0,
+      "context": "call",
+      "source": "lib_force_build_force_remove_cmake_build",
+      "target": "lib_force_build_eai_force_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/force-build.sh",
+      "source_location": "L14",
+      "weight": 1.0,
+      "context": "call",
+      "source": "lib_force_build_fresh_git_clone",
+      "target": "lib_force_build_eai_force_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/lib/install-build-tools.sh",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "lib_install_build_tools",
+      "target": "lib_install_build_tools_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_run_all",
+      "target": "home_magnus_projects_amdeai_scripts_run_all_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "scripts_run_all",
+      "target": "scripts_run_all_eai_force_rebuild",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "scripts_run_all",
+      "target": "scripts_run_all_eai_grub_apply_guide_values",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "scripts_run_all",
+      "target": "scripts_run_all_eai_min_free_gb",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "scripts_run_all",
+      "target": "scripts_run_all_run_step",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/run-all.sh",
+      "source_location": "L18",
+      "weight": 1.0,
+      "context": "call",
+      "source": "home_magnus_projects_amdeai_scripts_run_all_sh__entry",
+      "target": "scripts_run_all_run_step",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "tests_conftest",
+      "target": "tests_conftest_domain",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "tests_conftest",
+      "target": "tests_conftest_eai_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "tests_conftest",
+      "target": "tests_conftest_k8s_available",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "tests_conftest",
+      "target": "tests_conftest_my_ip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "tests_conftest",
+      "target": "tests_conftest_skip_without_k8s",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "tests_conftest_rationale_1",
+      "target": "tests_conftest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "tests_conftest_eai_build",
+      "target": "path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "tests_conftest_my_ip",
+      "target": "tests_conftest_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "tests_conftest_domain",
+      "target": "tests_conftest_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "tests_conftest_k8s_available",
+      "target": "bool",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/conftest.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "tests_conftest_skip_without_k8s",
+      "target": "bool",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "source": "e2e_conftest",
+      "target": "browsercontext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "e2e_conftest",
+      "target": "e2e_conftest_airm_password",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "e2e_conftest",
+      "target": "e2e_conftest_argocd_password",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L54",
+      "weight": 1.0,
+      "source": "e2e_conftest",
+      "target": "e2e_conftest_keycloak_password",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "e2e_conftest",
+      "target": "e2e_conftest_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "e2e_conftest_rationale_1",
+      "target": "e2e_conftest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "e2e_conftest_argocd_password",
+      "target": "tests_e2e_conftest_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "e2e_conftest_airm_password",
+      "target": "tests_e2e_conftest_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L54",
+      "weight": 1.0,
+      "source": "e2e_conftest_keycloak_password",
+      "target": "tests_e2e_conftest_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "source": "browsercontext",
+      "target": "browser",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/conftest.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "e2e_conftest_page",
+      "target": "browsercontext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "e2e_test_airm_ui",
+      "target": "e2e_test_airm_ui_test_airm_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "e2e_test_airm_ui_rationale_1",
+      "target": "e2e_test_airm_ui",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "e2e_test_airm_ui_test_airm_login",
+      "target": "tests_e2e_test_airm_ui_py_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_airm_ui.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "e2e_test_airm_ui_test_airm_login",
+      "target": "tests_e2e_test_airm_ui_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "e2e_test_aiwb_ui",
+      "target": "e2e_test_aiwb_ui_test_keycloak_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "e2e_test_aiwb_ui",
+      "target": "e2e_test_aiwb_ui_test_models_page_gemma",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "e2e_test_aiwb_ui_rationale_1",
+      "target": "e2e_test_aiwb_ui",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "e2e_test_aiwb_ui_test_keycloak_login",
+      "target": "tests_e2e_test_aiwb_ui_py_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "e2e_test_aiwb_ui_test_keycloak_login",
+      "target": "tests_e2e_test_aiwb_ui_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "e2e_test_aiwb_ui_test_models_page_gemma",
+      "target": "tests_e2e_test_aiwb_ui_py_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_aiwb_ui.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "e2e_test_aiwb_ui_test_models_page_gemma",
+      "target": "tests_e2e_test_aiwb_ui_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "e2e_test_argocd_ui",
+      "target": "e2e_test_argocd_ui_test_applications_visible",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "e2e_test_argocd_ui",
+      "target": "e2e_test_argocd_ui_test_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "e2e_test_argocd_ui_rationale_1",
+      "target": "e2e_test_argocd_ui",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "e2e_test_argocd_ui_test_login",
+      "target": "tests_e2e_test_argocd_ui_py_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "e2e_test_argocd_ui_test_login",
+      "target": "tests_e2e_test_argocd_ui_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "e2e_test_argocd_ui_test_applications_visible",
+      "target": "tests_e2e_test_argocd_ui_py_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/e2e/test_argocd_ui.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "e2e_test_argocd_ui_test_applications_visible",
+      "target": "tests_e2e_test_argocd_ui_py_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_aim_engine_operator.py",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "integration_test_aim_engine_operator",
+      "target": "integration_test_aim_engine_operator_test_aimmodel_cr_accepted",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_aim_engine_operator.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "integration_test_aim_engine_operator",
+      "target": "integration_test_kaiwo_operator_test_operator_ready",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_aim_engine_operator.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "integration_test_aim_engine_operator_rationale_1",
+      "target": "integration_test_aim_engine_operator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_gpu_scheduling.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "integration_test_gpu_scheduling",
+      "target": "integration_test_gpu_scheduling_test_gpu_pod_schedulable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_gpu_scheduling.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "integration_test_gpu_scheduling",
+      "target": "integration_test_gpu_scheduling_test_node_labels",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_gpu_scheduling.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "integration_test_gpu_scheduling_rationale_1",
+      "target": "integration_test_gpu_scheduling",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "integration_test_kaiwo_operator",
+      "target": "integration_test_kaiwo_operator_test_cluster_queue_exists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "integration_test_kaiwo_operator",
+      "target": "integration_test_kaiwo_operator_test_operator_ready",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "integration_test_kaiwo_operator",
+      "target": "integration_test_kaiwo_operator_test_resource_flavor_exists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/integration/test_kaiwo_operator.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "integration_test_kaiwo_operator_rationale_1",
+      "target": "integration_test_kaiwo_operator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "README_md_amdeai",
+      "target": "eai_suite_z13_guide_md_amdeai"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/CALL_FLOW_OVERVIEW.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "docs_call_flow_overview_md",
+      "target": "docs_overview_md"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "docs/OVERVIEW.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "docs_overview_md",
+      "target": "docs_call_flows_00_prerequisites_md"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "docs/OVERVIEW.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "docs_overview_md",
+      "target": "docs_call_flows_01_rocm_host_md"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "docs/OVERVIEW.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "docs_overview_md",
+      "target": "docs_call_flows_02_k3s_md"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "docs/OVERVIEW.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "docs_overview_md",
+      "target": "docs_call_flows_03_k8s_device_plugin_md"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "docs/OVERVIEW.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "docs_overview_md",
+      "target": "docs_call_flows_04_platform_md"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "docs/OVERVIEW.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "docs_overview_md",
+      "target": "docs_call_flows_05a_cluster_forge_md"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/call-flows/05b-kaiwo.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "call-flows_05b-kaiwo",
+      "target": "call-flows_07-llama-cpp"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/call-flows/06a-aim-engine.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "call-flows_06a-aim-engine",
+      "target": "call-flows_07-llama-cpp"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/call-flows/06b-airm-aiwb.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "call-flows_06b-airm-aiwb",
+      "target": "call-flows_07-llama-cpp"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/call-flows/07-llama-cpp.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "call-flows_07-llama-cpp",
+      "target": "tests_requirements_txt"
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "067fb7ac20a4d8acbe85f3b095578fb1d6d65a16"
+}

@@ -4,3 +4,11 @@ __pycache__/
 .env
 .cursor/
 backups/
+
+# Graphify — commit graph.json, GRAPH_REPORT.md, graph.html, manifest.json (team map).
+# Skip incremental rebuild artifacts (regenerated locally; can be large).
+graphify-out/cache/
+graphify-out/cost.json
+graphify-out/memory/
+graphify-out/converted/
+graphify-out/.graphify_python

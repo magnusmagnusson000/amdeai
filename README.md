@@ -12,6 +12,16 @@ playwright install chromium
 
 **Build tree:** `~/eai-build/` (cloned repositories)
 
+**Study tree refresh:** `bash scripts/fetch-study-sources.sh`
+
+This collects the full study inventory into `~/eai-build/`, including:
+
+- public upstream git repos for the stack (`k3s`, `cert-manager`, `metallb`, `longhorn`, `gateway-api`, `kueue`, `kuberay`, `kserve`, `cluster-forge`, `kaiwo`, `aim-engine`, `llama.cpp`, `k8s-device-plugin`)
+- curated ROCm source repos under `~/eai-build/rocm/`
+- local placeholders for private AMD OCI chart components
+
+See `~/eai-build/STACK_INDEX.md` for the current inventory.
+
 **Scripts:** `scripts/00-prerequisites.sh` … `scripts/07-llama-cpp.sh`
 
 **Disk checkpoints:** `scripts/lib/disk-report.sh <label>` after each layer (log in `~/.cache/amdeai/disk-log.txt`).

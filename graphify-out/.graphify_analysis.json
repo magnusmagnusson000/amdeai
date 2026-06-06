@@ -1,0 +1,363 @@
+{
+  "communities": {
+    "0": [
+      "scripts_02_kubernetes",
+      "scripts_02_kubernetes_apply_registry_manifest",
+      "scripts_02_kubernetes_backup_kubeconfig",
+      "scripts_02_kubernetes_check_registry_nodeport_free",
+      "scripts_02_kubernetes_configure_k3s_registries",
+      "scripts_02_kubernetes_disable_swap_for_kubernetes",
+      "scripts_02_kubernetes_install_k3d_local",
+      "scripts_02_kubernetes_k3s_cluster_healthy",
+      "scripts_02_kubernetes_kube_owner",
+      "scripts_02_kubernetes_kube_user_home",
+      "scripts_02_kubernetes_kubeconfig",
+      "scripts_02_kubernetes_kubectl_k3s",
+      "scripts_02_kubernetes_my_ip",
+      "scripts_02_kubernetes_preflight_kubernetes",
+      "scripts_02_kubernetes_repair_k3s_kubelet_sysctls_if_needed",
+      "scripts_02_kubernetes_setup_k3d_cluster",
+      "scripts_02_kubernetes_sync_k3s_kubeconfig",
+      "scripts_02_kubernetes_wait_for_k3s_api"
+    ],
+    "1": [
+      "home_magnus_projects_amdeai_scripts_lib_common_sh__entry",
+      "home_magnus_projects_amdeai_scripts_lib_disk_report_sh__entry",
+      "lib_common",
+      "lib_common_activate_venv",
+      "lib_common_check_disk_before_step",
+      "lib_common_domain",
+      "lib_common_eai_backup_file",
+      "lib_common_eai_backup_init",
+      "lib_common_eai_force_rebuild",
+      "lib_common_log_source_tree",
+      "lib_common_my_ip",
+      "lib_common_path",
+      "lib_disk_report",
+      "lib_disk_report_root_used_bytes",
+      "lib_disk_report_snapshot"
+    ],
+    "2": [
+      "bool",
+      "path",
+      "tests_conftest",
+      "tests_conftest_domain",
+      "tests_conftest_eai_build",
+      "tests_conftest_k8s_available",
+      "tests_conftest_my_ip",
+      "tests_conftest_py_str",
+      "tests_conftest_rationale_1",
+      "tests_conftest_skip_without_k8s"
+    ],
+    "3": [
+      "home_magnus_projects_amdeai_scripts_lib_force_build_sh__entry",
+      "lib_force_build",
+      "lib_force_build_eai_force_enabled",
+      "lib_force_build_force_apt_reinstall",
+      "lib_force_build_force_docker_build",
+      "lib_force_build_force_go_build",
+      "lib_force_build_force_helm_reinstall",
+      "lib_force_build_force_k3s_reinstall",
+      "lib_force_build_force_remove_cmake_build",
+      "lib_force_build_fresh_git_clone"
+    ],
+    "4": [
+      "browser",
+      "browsercontext",
+      "e2e_conftest",
+      "e2e_conftest_airm_password",
+      "e2e_conftest_argocd_password",
+      "e2e_conftest_keycloak_password",
+      "e2e_conftest_page",
+      "e2e_conftest_rationale_1",
+      "tests_e2e_conftest_py_str"
+    ],
+    "5": [
+      "docs_call_flow_overview_md",
+      "docs_call_flows_00_prerequisites_md",
+      "docs_call_flows_01_rocm_host_md",
+      "docs_call_flows_02_k3s_md",
+      "docs_call_flows_03_k8s_device_plugin_md",
+      "docs_call_flows_04_platform_md",
+      "docs_call_flows_05a_cluster_forge_md",
+      "docs_overview_md"
+    ],
+    "6": [
+      "integration_test_aim_engine_operator",
+      "integration_test_aim_engine_operator_rationale_1",
+      "integration_test_aim_engine_operator_test_aimmodel_cr_accepted",
+      "integration_test_kaiwo_operator",
+      "integration_test_kaiwo_operator_rationale_1",
+      "integration_test_kaiwo_operator_test_cluster_queue_exists",
+      "integration_test_kaiwo_operator_test_operator_ready",
+      "integration_test_kaiwo_operator_test_resource_flavor_exists"
+    ],
+    "7": [
+      "e2e_test_aiwb_ui",
+      "e2e_test_aiwb_ui_rationale_1",
+      "e2e_test_aiwb_ui_test_keycloak_login",
+      "e2e_test_aiwb_ui_test_models_page_gemma",
+      "tests_e2e_test_aiwb_ui_py_page",
+      "tests_e2e_test_aiwb_ui_py_str"
+    ],
+    "8": [
+      "e2e_test_argocd_ui",
+      "e2e_test_argocd_ui_rationale_1",
+      "e2e_test_argocd_ui_test_applications_visible",
+      "e2e_test_argocd_ui_test_login",
+      "tests_e2e_test_argocd_ui_py_page",
+      "tests_e2e_test_argocd_ui_py_str"
+    ],
+    "9": [
+      "home_magnus_projects_amdeai_scripts_01_host_rocm_sh__entry",
+      "scripts_01_host_rocm",
+      "scripts_01_host_rocm_eai_grub_guide_gtt",
+      "scripts_01_host_rocm_eai_grub_guide_ttm",
+      "scripts_01_host_rocm_merge_grub_cmdline",
+      "scripts_01_host_rocm_path"
+    ],
+    "10": [
+      "home_magnus_projects_amdeai_scripts_graphify_all_sh__entry",
+      "scripts_graphify_all",
+      "scripts_graphify_all_graphify_ollama_keep_alive",
+      "scripts_graphify_all_graphify_ollama_num_ctx",
+      "scripts_graphify_all_ollama_api_key",
+      "scripts_graphify_all_pythonunbuffered"
+    ],
+    "11": [
+      "home_magnus_projects_amdeai_scripts_run_all_sh__entry",
+      "scripts_run_all",
+      "scripts_run_all_eai_force_rebuild",
+      "scripts_run_all_eai_grub_apply_guide_values",
+      "scripts_run_all_eai_min_free_gb",
+      "scripts_run_all_run_step"
+    ],
+    "12": [
+      "call-flows_05b-kaiwo",
+      "call-flows_06a-aim-engine",
+      "call-flows_06b-airm-aiwb",
+      "call-flows_07-llama-cpp",
+      "tests_requirements_txt"
+    ],
+    "13": [
+      "e2e_test_airm_ui",
+      "e2e_test_airm_ui_rationale_1",
+      "e2e_test_airm_ui_test_airm_login",
+      "tests_e2e_test_airm_ui_py_page",
+      "tests_e2e_test_airm_ui_py_str"
+    ],
+    "14": [
+      "home_magnus_projects_amdeai_scripts_07_llama_cpp_sh__entry",
+      "scripts_07_llama_cpp",
+      "scripts_07_llama_cpp_kubeconfig",
+      "scripts_07_llama_cpp_my_ip",
+      "scripts_07_llama_cpp_path"
+    ],
+    "15": [
+      "scripts_05a_cluster_forge",
+      "scripts_05a_cluster_forge_domain",
+      "scripts_05a_cluster_forge_kubeconfig",
+      "scripts_05a_cluster_forge_my_ip",
+      "scripts_05a_cluster_forge_path"
+    ],
+    "16": [
+      "home_magnus_projects_amdeai_scripts_04_platform_sh__entry",
+      "scripts_04_platform",
+      "scripts_04_platform_kubeconfig",
+      "scripts_04_platform_my_ip"
+    ],
+    "17": [
+      "home_magnus_projects_amdeai_scripts_05b_kaiwo_sh__entry",
+      "scripts_05b_kaiwo",
+      "scripts_05b_kaiwo_kubeconfig",
+      "scripts_05b_kaiwo_path"
+    ],
+    "18": [
+      "integration_test_gpu_scheduling",
+      "integration_test_gpu_scheduling_rationale_1",
+      "integration_test_gpu_scheduling_test_gpu_pod_schedulable",
+      "integration_test_gpu_scheduling_test_node_labels"
+    ],
+    "19": [
+      "scripts_fetch_study_sources",
+      "scripts_fetch_study_sources_clone_depth1",
+      "scripts_fetch_study_sources_create_private_stub",
+      "scripts_fetch_study_sources_pull_oci_chart"
+    ],
+    "20": [
+      "home_magnus_projects_amdeai_scripts_00_prerequisites_sh__entry",
+      "scripts_00_prerequisites",
+      "scripts_00_prerequisites_path"
+    ],
+    "21": [
+      "home_magnus_projects_amdeai_scripts_03_gpu_plugin_sh__entry",
+      "scripts_03_gpu_plugin",
+      "scripts_03_gpu_plugin_kubeconfig"
+    ],
+    "22": [
+      "home_magnus_projects_amdeai_scripts_06a_aim_engine_sh__entry",
+      "scripts_06a_aim_engine",
+      "scripts_06a_aim_engine_kubeconfig"
+    ],
+    "23": [
+      "scripts_06b_airm_workbench",
+      "scripts_06b_airm_workbench_domain",
+      "scripts_06b_airm_workbench_kubeconfig"
+    ],
+    "24": [
+      "vscode_settings",
+      "vscode_settings_python_defaultinterpreterpath",
+      "vscode_settings_python_terminal_activateenvironment"
+    ],
+    "25": [
+      "README_md_amdeai",
+      "eai_suite_z13_guide_md_amdeai"
+    ],
+    "26": [
+      "lib_install_build_tools",
+      "lib_install_build_tools_path"
+    ]
+  },
+  "cohesion": {
+    "0": 0.20915032679738563,
+    "1": 0.1619047619047619,
+    "2": 0.24444444444444444,
+    "3": 0.3333333333333333,
+    "4": 0.3055555555555556,
+    "5": 0.25,
+    "6": 0.25,
+    "7": 0.4666666666666667,
+    "8": 0.4666666666666667,
+    "9": 0.3333333333333333,
+    "10": 0.3333333333333333,
+    "11": 0.4,
+    "12": 0.4,
+    "13": 0.4,
+    "14": 0.4,
+    "15": 0.4,
+    "16": 0.5,
+    "17": 0.5,
+    "18": 0.5,
+    "19": 0.5,
+    "20": 0.6666666666666666,
+    "21": 0.6666666666666666,
+    "22": 0.6666666666666666,
+    "23": 0.6666666666666666,
+    "24": 0.6666666666666666,
+    "25": 1.0,
+    "26": 1.0
+  },
+  "gods": [
+    {
+      "id": "scripts_02_kubernetes_setup_k3d_cluster",
+      "label": "setup_k3d_cluster()",
+      "degree": 10
+    },
+    {
+      "id": "lib_force_build_eai_force_enabled",
+      "label": "eai_force_enabled()",
+      "degree": 7
+    },
+    {
+      "id": "docs_overview_md",
+      "label": "AMD Enterprise AI Suite \u2014 Stack Overview",
+      "degree": 7
+    },
+    {
+      "id": "scripts_02_kubernetes_wait_for_k3s_api",
+      "label": "wait_for_k3s_api()",
+      "degree": 5
+    },
+    {
+      "id": "call-flows_07-llama-cpp",
+      "label": "Call flow: ggml-org/llama.cpp (inference hot path)",
+      "degree": 4
+    },
+    {
+      "id": "scripts_02_kubernetes_kubectl_k3s",
+      "label": "kubectl_k3s()",
+      "degree": 3
+    },
+    {
+      "id": "scripts_02_kubernetes_check_registry_nodeport_free",
+      "label": "check_registry_nodeport_free()",
+      "degree": 3
+    },
+    {
+      "id": "scripts_02_kubernetes_sync_k3s_kubeconfig",
+      "label": "sync_k3s_kubeconfig()",
+      "degree": 3
+    },
+    {
+      "id": "scripts_02_kubernetes_apply_registry_manifest",
+      "label": "apply_registry_manifest()",
+      "degree": 3
+    },
+    {
+      "id": "scripts_02_kubernetes_configure_k3s_registries",
+      "label": "configure_k3s_registries()",
+      "degree": 3
+    }
+  ],
+  "surprises": [
+    {
+      "source": "AMD Enterprise AI Suite \u2014 Z13 (amdeai)",
+      "target": "AMD Enterprise AI Suite \u2014 Build From Source Guide",
+      "source_files": [
+        "README.md",
+        "eai-suite-z13-guide.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "AMD Enterprise AI Suite \u2014 Stack Overview",
+      "target": "Call flow: prerequisites (build toolchain)",
+      "source_files": [
+        "docs/OVERVIEW.md",
+        "docs/call-flows/00-prerequisites.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `Call flow: prerequisites (build toolchain)` unexpectedly reaches hub `AMD Enterprise AI Suite \u2014 Stack Overview`"
+    },
+    {
+      "source": "AMD Enterprise AI Suite \u2014 Stack Overview",
+      "target": "Call flow: ROCm + host kernel (memory and compute substrate)",
+      "source_files": [
+        "docs/OVERVIEW.md",
+        "docs/call-flows/01-rocm-host.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `Call flow: ROCm + host kernel (memory and compute substrate)` unexpectedly reaches hub `AMD Enterprise AI Suite \u2014 Stack Overview`"
+    },
+    {
+      "source": "AMD Enterprise AI Suite \u2014 Stack Overview",
+      "target": "Call flow: k3s (Kubernetes runtime)",
+      "source_files": [
+        "docs/OVERVIEW.md",
+        "docs/call-flows/02-k3s.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `Call flow: k3s (Kubernetes runtime)` unexpectedly reaches hub `AMD Enterprise AI Suite \u2014 Stack Overview`"
+    },
+    {
+      "source": "AMD Enterprise AI Suite \u2014 Stack Overview",
+      "target": "Call flow: ROCm/k8s-device-plugin",
+      "source_files": [
+        "docs/OVERVIEW.md",
+        "docs/call-flows/03-k8s-device-plugin.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `Call flow: ROCm/k8s-device-plugin` unexpectedly reaches hub `AMD Enterprise AI Suite \u2014 Stack Overview`"
+    }
+  ],
+  "tokens": {
+    "input": 20524,
+    "output": 2071
+  }
+}
