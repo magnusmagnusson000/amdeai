@@ -29,6 +29,21 @@ fresh_git_clone() {
   fi
 }
 
+# Keep an existing local clone (e.g. gfx1151 feature branch) instead of deleting it.
+ensure_git_repo() {
+  local url="$1" dir="$2" branch="${3:-}"
+  if [[ -d "$dir/.git" ]]; then
+    echo "[preserve] Using existing repo: $dir (branch: $(git -C "$dir" branch --show-current 2>/dev/null || echo unknown))"
+    git -C "$dir" fetch --all --tags 2>/dev/null || true
+    if [[ -n "$branch" ]]; then
+      git -C "$dir" checkout "$branch" 2>/dev/null || git -C "$dir" checkout -b "$branch"
+    fi
+    git -C "$dir" pull --ff-only 2>/dev/null || true
+    return 0
+  fi
+  fresh_git_clone "$url" "$dir" "$branch"
+}
+
 force_remove_cmake_build() {
   local dir="$1"
   if eai_force_enabled && [[ -d "$dir" ]]; then

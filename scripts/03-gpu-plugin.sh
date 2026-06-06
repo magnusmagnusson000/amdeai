@@ -59,6 +59,14 @@ spec:
         env:
         - name: HSA_OVERRIDE_GFX_VERSION
           value: "11.5.1"
+        - name: HSA_ENABLE_SDMA
+          value: "0"
+        - name: MIOPEN_FIND_ENFORCE
+          value: "1"
+        - name: PYTORCH_TUNABLEOP_ENABLED
+          value: "1"
+        - name: TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL
+          value: "1"
         volumeMounts:
         - name: dp-dir
           mountPath: /var/lib/kubelet/device-plugins

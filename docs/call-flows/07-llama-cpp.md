@@ -1,77 +1,65 @@
-# Call flow: ggml-org/llama.cpp (inference hot path)
+# Call flow: ggml-org/llama.cpp (local inference)
 
-**Source:** `~/eai-build/llama.cpp/`
+**Source:** `~/eai-build/llama.cpp/` (branch `gfx1151-rdna35-tuning` for HIP fixes)  
+**Script:** `scripts/07-llama-cpp.sh`  
+**Upstream guide:** [gfx1151-upstream-pr-guide.md](../gfx1151-upstream-pr-guide.md)
 
-This is the component that executes **every token** for the local Gemma 4 endpoint.
+## Backends on gfx1151
 
-## Downward path (prompt → hardware)
+| Backend | Build dir | Default for | Env |
+|---------|-----------|-------------|-----|
+| **Vulkan** | `build-vulkan/` | Gemma 4 26B-A4B (MoE) | `EAI_LLAMA_BACKEND=vulkan` |
+| **HIP/ROCm** | `build-hip/` | SLMs, cluster-style local tests | `EAI_LLAMA_BACKEND=hip` |
 
-### 1. HTTP ingress — `tools/server` (llama-server)
+Both backends share the same GGML graph; only the GPU dispatch layer differs.
 
-- **Entry:** `POST /v1/chat/completions` (OpenAI-compatible JSON).
-- **Handler chain:** HTTP server (cpp-httplib or similar) → routes to chat completion handler.
-- **Key work:**
-  - Parse `messages[]`, `max_tokens`, `stream`.
-  - Load **Jinja** chat template (`--jinja`) for Gemma 4 turn format.
-  - Tokenize prompt via `llama_tokenize` / vocabulary from GGUF.
+## Downward path (prompt → hardware) — Vulkan (Gemma 4 default)
 
-**Read next:** `tools/server/server.cpp`, `tools/server/utils.hpp` (chat template application).
+1. **HTTP:** `POST /v1/chat/completions` → `tools/server`
+2. **Graph:** `llama-graph.cpp` — matmul, RoPE, MoE router (Gemma 4-A4B)
+3. **Backend:** `ggml-vulkan` → Mesa RADV → DRM → gfx1151
 
-### 2. Context and batching — `src/llama-context.cpp`
+## Downward path — HIP (standard ROCm, after gfx1151 patches)
 
-- Maintains **KV cache** (`--cache-type-k/v q8_0`) across turns.
-- Builds a **micro-batch** of tokens for this decode step.
-- Sets `n_gpu_layers 999` so weights and compute live on GPU backend.
+1. Same HTTP and graph build as above.
+2. **Backend:** `ggml-cuda` (HIP) → `hipLaunchKernel` → ROCclr → KFD → gfx1151
+3. **gfx1151 patches (branch `gfx1151-rdna35-tuning`):**
+   - `mmvq.cu` — `MMVQ_PARAMETERS_RDNA3_5` (`nwarps=4`)
+   - `mmq.cuh` — tile sizes 48×64, `nwarps=4`
+   - `topk-moe.cu` — disable fused MoE on RDNA3_5 (workaround #21416)
 
-### 3. Graph build — `src/llama-graph.cpp`, `ggml`
+## Upward path
 
-- Constructs a **directed acyclic graph** of tensor ops: matmul, RoPE, softmax, MoE routing (Gemma 4-A4B).
-- Scheduler picks backend per tensor: **GGML_BACKEND_DEVICE_TYPE_GPU** → Vulkan.
+Fence/event → sampling → SSE/JSON → AI Workbench backend → UI.
 
-### 4. Vulkan backend — `ggml/src/ggml-vulkan/`
+## Build commands
 
-- **Init:** `vkCreateInstance`, enumerate physical device → AMD Radeon (gfx1151).
-- **Per op:** SPIR-V compute pipelines (or cooperative matrices where supported).
-- **Submit:** `vkQueueSubmit` with semaphores/fences per graph slice.
-- **Memory:** `vkAllocateMemory` for weights, KV, scratch — backed by system RAM visible to iGPU (unified memory).
+```bash
+# Vulkan (default script backend for Gemma)
+cmake -B build-vulkan -DGGML_VULKAN=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build-vulkan -j$(nproc)
 
-**Read next:** `ggml/src/ggml-vulkan/ggml-vulkan.cpp`, `ggml-vulkan-shaders/`.
+# HIP (gfx1151)
+cmake -B build-hip -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx1151 -DCMAKE_BUILD_TYPE=Release
+cmake --build build-hip -j$(nproc)
+```
 
-### 5. Userspace driver — Mesa RADV (Vulkan ICD)
+## SLM test (before/after patches)
 
-- Loader: `libvulkan_radeon.so` (Mesa), not ROCm HIP for this build.
-- Translates Vulkan commands to **DRM** ioctl stream.
+```bash
+./build-hip/bin/llama-bench --model ~/models/Qwen3-0.6B-Q4_K_M.gguf \
+  --n-gpu-layers 99 -p 512 -n 128 -r 3
+```
 
-### 6. Kernel — `amdgpu` (DRM/KFD)
+## Files to read
 
-- **DRM:** buffer object (BO) allocation in GTT/VRAM (`amdgpu.gttsize`, `ttm.pages_limit` from GRUB).
-- **Scheduler:** submits IBs to GPU ring (GFX, SDMA).
-- **Interrupt:** completion fence wakes Vulkan fence.
+| Step | Path |
+|------|------|
+| HTTP | `tools/server/server.cpp` |
+| MoE graph | `src/models/gemma4.cpp`, `src/llama-graph.cpp` |
+| HIP kernels | `ggml/src/ggml-cuda/mmvq.cu`, `mmq.cuh`, `topk-moe.cu` |
+| Vulkan | `ggml/src/ggml-vulkan/` |
 
-### 7. Hardware — Radeon 8060S (gfx1151)
+## Relation to standard EAI path
 
-- **Shader cores (40 CU)** execute WMMA/vector ops for matmul/attention.
-- **Unified LPDDR5x:** weights (~14 GB Q4_K_M) + KV cache in addressable pool.
-
-## Upward path (hardware → response)
-
-1. Fence completion → Vulkan → GGML op done.
-2. **Sampling:** logits → softmax → token id (greedy or configured sampler).
-3. Repeat decode loop until `max_tokens` or EOS.
-4. **Detokenize** → UTF-8 string.
-5. **HTTP response:** JSON `choices[].message.content` or SSE chunks.
-6. Client (AI Workbench backend) aggregates stream → UI.
-
-## Why not HIP/ROCm for this model
-
-On gfx1151, Gemma 4 MoE via HIP can enter `<unused24>` loop (llama.cpp #21416). Vulkan path is the validated backend for this hardware+model pair.
-
-## Files to set breakpoints / grep
-
-| Step | Path hint |
-|------|-----------|
-| HTTP | `tools/server/*.cpp` |
-| Tokenize | `src/llama-vocab.cpp` |
-| Graph | `src/llama-graph.cpp` |
-| Vulkan op | `ggml/src/ggml-vulkan/` |
-| Device list | `llama-cli --list-devices` |
+Cluster inference uses **vLLM in GPU pods** (Kaiwo path), not host llama-server. Host llama.cpp serves the Workbench **AIMModel** endpoint at `http://<node-ip>:8080`.

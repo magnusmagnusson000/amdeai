@@ -1,8 +1,41 @@
 # AMD Enterprise AI Suite — Z13 (amdeai)
 
-Automation and tests for building the [AMD Enterprise AI Suite](eai-suite-z13-guide.md) on Asus Z13 (Radeon 8060S, gfx1151, 128 GB RAM, Ubuntu 24.04).
+Automation, documentation, and tests for the [AMD Enterprise AI Suite](eai-suite-z13-guide.md) on Asus Z13 (Radeon 8060S, **gfx1151**, 128 GB RAM, Ubuntu 24.04).
 
-**Python venv (required for tests):** `/home/magnus/projects/venvs/amd`
+**Standard inference path:** ROCm HIP in Kubernetes (Kaiwo → vLLM → gfx1151)  
+**Local Workbench chat:** llama.cpp on host port 8080 (Vulkan for Gemma 4; HIP for SLMs)  
+**gfx1151 patches:** [docs/gfx1151-upstream-pr-guide.md](docs/gfx1151-upstream-pr-guide.md)
+
+---
+
+## Quick start — full system install
+
+Run scripts in order. Most steps need **sudo** (k3s, ROCm, GRUB). Set `HF_TOKEN` before step 06b.
+
+```bash
+cd /home/magnus/projects/amdeai
+
+# Optional: refresh all study-tree repos
+bash scripts/sync-eai-build.sh
+
+# Full pipeline
+bash scripts/lib/disk-report.sh baseline --baseline
+bash scripts/00-prerequisites.sh
+bash scripts/01-host-rocm.sh          # may require REBOOT — see below
+# *** reboot if 01-host-rocm.sh says REBOOT REQUIRED ***
+bash scripts/02-kubernetes.sh         # k3s + local registry :32000
+bash scripts/03-gpu-plugin.sh         # amd.com/gpu + gfx1151 env
+bash scripts/04-platform.sh           # cert-manager, MetalLB, Longhorn, …
+bash scripts/05a-cluster-forge.sh     # ArgoCD, Gitea, GitOps
+bash scripts/05b-kaiwo.sh             # Kaiwo + Kueue amd-gfx1151 flavor
+bash scripts/06a-aim-engine.sh        # AIM Engine + CRDs
+HF_TOKEN=... bash scripts/06b-airm-workbench.sh
+bash scripts/07-llama-cpp.sh          # llama-server + AIMModel CR
+```
+
+Or run everything: `bash scripts/run-all.sh` (requires sudo + `HF_TOKEN`).
+
+**Python venv (tests):**
 
 ```bash
 source /home/magnus/projects/venvs/amd/bin/activate
@@ -10,204 +43,201 @@ pip install -r tests/requirements.txt
 playwright install chromium
 ```
 
-**Build tree:** `~/eai-build/` (cloned repositories)
+---
 
-**Study tree refresh:** `bash scripts/fetch-study-sources.sh`
+## Step-by-step guide
 
-This collects the full study inventory into `~/eai-build/`, including:
+### Step 0 — Prerequisites (`00-prerequisites.sh`)
 
-- public upstream git repos for the stack (`k3s`, `cert-manager`, `metallb`, `longhorn`, `gateway-api`, `kueue`, `kuberay`, `kserve`, `cluster-forge`, `kaiwo`, `aim-engine`, `llama.cpp`, `k8s-device-plugin`)
-- curated ROCm source repos under `~/eai-build/rocm/`
-- local placeholders for private AMD OCI chart components
+Installs Go, Helm, kubectl, CMake, Docker, and the Python test venv.
 
-See `~/eai-build/STACK_INDEX.md` for the current inventory.
+```bash
+bash scripts/00-prerequisites.sh
+```
 
-**Scripts:** `scripts/00-prerequisites.sh` … `scripts/07-llama-cpp.sh`
+### Step 1 — ROCm host stack (`01-host-rocm.sh`)
 
-**Disk checkpoints:** `scripts/lib/disk-report.sh <label>` after each layer (log in `~/.cache/amdeai/disk-log.txt`).
+- Installs ROCm 7.2.x from AMD apt repo
+- Configures GRUB for 128 GiB GTT visibility on Strix Halo
+- Sets `HSA_OVERRIDE_GFX_VERSION=11.5.1` in `/etc/environment`
 
-### Force rebuild (default)
+```bash
+bash scripts/01-host-rocm.sh
+```
 
-Every script sets **`EAI_FORCE_REBUILD=1`** by default: fresh git clones, `--no-cache` Docker builds, Helm uninstall/reinstall, ROCm reinstall, k3s reinstall, and clean CMake trees. This is intentional so you can read sources under `~/eai-build/` and surface build/runtime bugs.
+**If the script prints `REBOOT REQUIRED`**, reboot before continuing:
 
-To allow skips (not recommended): `EAI_FORCE_REBUILD=0 bash scripts/03-gpu-plugin.sh`
+```bash
+sudo reboot
+```
 
-Full stack: `bash scripts/run-all.sh` (requires sudo; set `HF_TOKEN` before layer 06b).
+After reboot, verify:
 
-### Call flows (prompt → kernel → response)
+```bash
+rocminfo | grep gfx
+rocm-smi --showmeminfo vram    # should show ~128 GiB, not ~4 GiB
+```
 
-- **[End-to-end overview](docs/CALL_FLOW_OVERVIEW.md)** — sequence from AI Workbench chat through llama.cpp Vulkan to gfx1151 and back.
-- Per-component docs in **[docs/call-flows/](docs/call-flows/)** — linked from each repository chapter below.
+Optional: align GRUB with guide values: `EAI_GRUB_APPLY_GUIDE_VALUES=1 bash scripts/01-host-rocm.sh`
+
+### Step 2 — Kubernetes / k3s (`02-kubernetes.sh`)
+
+Installs a **single-node k3s** cluster (or k3d fallback without sudo):
+
+| Item | Value |
+|------|-------|
+| API | `https://127.0.0.1:6443` (kubeconfig in `~/.kube/config`) |
+| Local registry | `localhost:32000` (NodePort) |
+| Mirrors | `/etc/rancher/k3s/registries.yaml` |
+
+```bash
+bash scripts/02-kubernetes.sh
+kubectl get nodes
+curl -sf http://localhost:32000/v2/ && echo "registry OK"
+```
+
+**k3s install details** (what the script runs):
+
+- Disables bundled Traefik and ServiceLB (MetalLB used instead)
+- Enables privileged containers (GPU device plugin)
+- Deploys `registry:2` on NodePort **32000**
+- Disables swap (kubelet requirement)
+
+**Skip reboot check** (not recommended): `EAI_SKIP_REBOOT_CHECK=1 bash scripts/02-kubernetes.sh`
+
+### Step 3 — GPU device plugin (`03-gpu-plugin.sh`)
+
+Builds `localhost:32000/amd-gpu-device-plugin:latest`, deploys DaemonSet with gfx1151 env vars, labels node for Kaiwo.
+
+```bash
+bash scripts/03-gpu-plugin.sh
+kubectl get node -o custom-columns=NAME:.metadata.name,GPU:status.capacity.amd\\.com/gpu
+```
+
+### Step 4 — Platform layer (`04-platform.sh`)
+
+Helm install: cert-manager, MetalLB, Longhorn, Gateway API, Kueue, KubeRay, KServe.
+
+```bash
+bash scripts/04-platform.sh
+```
+
+### Step 5a — cluster-forge (`05a-cluster-forge.sh`)
+
+GitOps bootstrap: ArgoCD, Gitea, OpenBao. Several apps disabled for minimal Z13 setup (AIRM/Keycloak via 06b).
+
+```bash
+bash scripts/05a-cluster-forge.sh
+```
+
+### Step 5b — Kaiwo (`05b-kaiwo.sh`)
+
+Kaiwo operator + Kueue `ResourceFlavor` **amd-gfx1151** (1 GPU quota).
+
+```bash
+bash scripts/05b-kaiwo.sh
+kubectl get pods -n kaiwo-system
+```
+
+### Step 6a — AIM Engine (`06a-aim-engine.sh`)
+
+AIM Engine operator and CRDs for `AIMModel` registration.
+
+```bash
+bash scripts/06a-aim-engine.sh
+```
+
+### Step 6b — AIRM + AI Workbench (`06b-airm-workbench.sh`)
+
+Requires Hugging Face token for model catalog features.
+
+```bash
+export HF_TOKEN=hf_...
+bash scripts/06b-airm-workbench.sh
+```
+
+**URLs** (replace `<IP>` with node IP, e.g. from `hostname -I`):
+
+| Service | URL |
+|---------|-----|
+| AI Workbench | `https://aiwbui.<IP>.nip.io` |
+| AIRM | `https://airmui.<IP>.nip.io` |
+| Keycloak | `https://keycloak.<IP>.nip.io` |
+
+Default user: `silogen-admin` (password set at bootstrap).
+
+### Step 7 — llama.cpp (`07-llama-cpp.sh`)
+
+Builds llama.cpp from `~/eai-build/llama.cpp` (branch **`gfx1151-rdna35-tuning`**), starts systemd user service, registers AIMModel.
+
+```bash
+# Default: Vulkan backend for Gemma 4
+bash scripts/07-llama-cpp.sh
+
+# Also build HIP binary (for SLM testing)
+EAI_LLAMA_BUILD_HIP=1 bash scripts/07-llama-cpp.sh
+
+# Use HIP backend for llama-server (after validating SLMs)
+EAI_LLAMA_BACKEND=hip bash scripts/07-llama-cpp.sh
+```
+
+Place Gemma GGUF at `~/models/gemma-4-26b-a4b-it-Q4_K_M.gguf` or set `MODEL_PATH=...`.
+
+**Local server:** `http://<node-ip>:8080` (OpenAI-compatible, no auth).
 
 ---
 
-## Host environment notes
+## gfx1151 / ROCm notes
 
-Your system already has kernel cmdline tuning (see `01-host-rocm.sh`):
+| Topic | Action |
+|-------|--------|
+| HIP kernel fixes | Branch `gfx1151-rdna35-tuning` in `~/eai-build/llama.cpp` |
+| Upstream PR guide | [docs/gfx1151-upstream-pr-guide.md](docs/gfx1151-upstream-pr-guide.md) |
+| Gemma 4 on HIP | Use Vulkan (`EAI_LLAMA_BACKEND=vulkan`) until #21416 resolved |
+| SLM test models | Qwen3-0.6B, phi-4-mini Q4_K_M |
+| Firmware MES | Avoid 0x83 hang — see upstream guide |
+| Sync repos | `bash scripts/sync-eai-build.sh` |
 
-| Parameter | Your value | Guide value |
-|-----------|------------|-------------|
+**Host GRUB (your system vs guide):**
+
+| Parameter | Typical Z13 | Guide |
+|-----------|-------------|-------|
 | `amdgpu.gttsize` | 110000 | 131072 |
 | `ttm.pages_limit` | 12582912 | 33554432 |
-| `amd_iommu` | *(missing)* | off |
-| `amdgpu.dcdebugmask` | 0x10 | — |
-
-ROCm 7.2.1 is installed; `gfx1151` is detected. If `rocm-smi` still reports ~4 GiB VRAM, apply `HSA_OVERRIDE_GFX_VERSION=11.5.1` and consider aligning GRUB with the guide (`EAI_GRUB_APPLY_GUIDE_VALUES=1`).
+| `amd_iommu` | — | off |
 
 ---
 
-## Repositories
+## Build tree and branches
 
-### ROCm (host stack)
+**Study tree:** `~/eai-build/` — see `~/eai-build/STACK_INDEX.md`
 
-**Role:** AMD GPU compute stack (HIP, rocBLAS, rocminfo, rocm-smi). Required for device-plugin builds and ROCm workloads.
+**Feature branches:**
 
-**Call flow:** [docs/call-flows/01-rocm-host.md](docs/call-flows/01-rocm-host.md) — GRUB memory pool, `amdgpu` kernel, HSA overrides; substrate for HIP pods; DRM path for Vulkan.
+| Repo | Branch | Purpose |
+|------|--------|---------|
+| `~/eai-build/llama.cpp` | `gfx1151-rdna35-tuning` | MMVQ/MMQ/MoE gfx1151 patches |
+| `amdeai` (this repo) | `gfx1151-rocm-enable` | Scripts, docs, install automation |
 
-**Docs:**
-
-- [ROCm documentation](https://rocm.docs.amd.com/)
-- [Install on Linux](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/)
-- [ROCm on Radeon and Ryzen](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/index.html)
-- [Environment variables](https://rocm.docs.amd.com/en/reference/env-variables.html)
-
----
-
-### k3s
-
-**Role:** Lightweight single-node Kubernetes cluster; base for registry, operators, and Helm releases.
-
-**Call flow:** [docs/call-flows/02-k3s.md](docs/call-flows/02-k3s.md) — API server → controllers → kubelet → pod network for UI/operators.
-
-**Docs:**
-
-- [K3s documentation](https://docs.k3s.io/)
-- [Installation](https://docs.k3s.io/installation)
-- [Registries configuration](https://docs.k3s.io/installation/private-registry)
+Refresh study sources: `bash scripts/fetch-study-sources.sh`  
+Pull latest: `bash scripts/sync-eai-build.sh`
 
 ---
 
-### [ROCm/k8s-device-plugin](https://github.com/ROCm/k8s-device-plugin)
+## Call flows
 
-**Role:** Kubernetes device plugin that advertises `amd.com/gpu` on nodes so GPU workloads can be scheduled.
-
-**Docs:**
-
-- [Repository README](https://github.com/ROCm/k8s-device-plugin/blob/master/README.md)
-- [ROCm Kubernetes documentation](https://rocm.docs.amd.com/projects/k8s-device-plugin/en/latest/)
-
-**Build:** `scripts/03-gpu-plugin.sh` — Docker image → `localhost:32000/amd-gpu-device-plugin:latest`
-
-**Call flow:** [docs/call-flows/03-k8s-device-plugin.md](docs/call-flows/03-k8s-device-plugin.md) — kubelet gRPC → `amd.com/gpu` → GPU pods (not host Vulkan llama).
+- **[End-to-end overview](docs/CALL_FLOW_OVERVIEW.md)** — standard ROCm path + local llama.cpp path
+- **[Full stack overview](docs/OVERVIEW.md)** — per-repository chapters
+- **[Per-component docs](docs/call-flows/)** — linked from README repository sections below
 
 ---
 
-### Platform layer (cert-manager, MetalLB, Longhorn, Gateway API, Kueue, KubeRay, KServe)
+## Force rebuild (default)
 
-**Role:** TLS, load balancing, storage, routing, queuing, Ray, and KServe serving infrastructure.
+Every script sets **`EAI_FORCE_REBUILD=1`** by default (fresh clones, `--no-cache` Docker, Helm reinstall).  
+To allow skips: `EAI_FORCE_REBUILD=0 bash scripts/03-gpu-plugin.sh`
 
-**Call flow:** [docs/call-flows/04-platform.md](docs/call-flows/04-platform.md) — how each chart participates (or not) in the chat path.
-
-**Docs (cert-manager example):**
-
-- [cert-manager documentation](https://cert-manager.io/docs/)
-- [MetalLB documentation](https://metallb.io/)
-- [Longhorn documentation](https://longhorn.io/docs/)
-- [Gateway API documentation](https://gateway-api.sigs.k8s.io/)
-- [Kueue documentation](https://kueue.sigs.k8s.io/docs/overview/)
-- [KubeRay documentation](https://ray-project.github.io/kuberay/)
-- [KServe documentation](https://kserve.github.io/website/)
-
-**Deploy:** `scripts/04-platform.sh` (Helm; force reinstall)
-
----
-
-### [silogen/cluster-forge](https://github.com/silogen/cluster-forge)
-
-**Role:** Go tool that bundles Helm charts and YAML into a GitOps deployable stack (ArgoCD, Gitea, Keycloak, MinIO, Kaiwo, etc.).
-
-**Docs:**
-
-- [Repository](https://github.com/silogen/cluster-forge)
-- [ArgoCD documentation](https://argo-cd.readthedocs.io/) *(deployed by cluster-forge)*
-
-**Build:** `scripts/05a-cluster-forge.sh`
-
-**Call flow:** [docs/call-flows/05a-cluster-forge.md](docs/call-flows/05a-cluster-forge.md) — smelt/cast/bootstrap only; not in token hot path.
-
----
-
-### [silogen/kaiwo](https://github.com/silogen/kaiwo)
-
-**Role:** AI workload orchestrator for Kubernetes; topology-aware scheduling and integration with Kueue.
-
-**Docs:**
-
-- [Repository](https://github.com/silogen/kaiwo)
-- [Kueue documentation](https://kueue.sigs.k8s.io/docs/overview/) *(resource flavors)*
-
-**Build:** `scripts/05b-kaiwo.sh`
-
-**Call flow:** [docs/call-flows/05b-kaiwo.md](docs/call-flows/05b-kaiwo.md) — KaiwoJob → Kueue → GPU pod (cluster inference path).
-
----
-
-### [amd-enterprise-ai/aim-engine](https://github.com/amd-enterprise-ai/aim-engine)
-
-**Role:** Kubernetes operator for AMD inference deployments (`AIMModel` CRDs, Helm chart, routing).
-
-**Docs:**
-
-- [Repository](https://github.com/amd-enterprise-ai/aim-engine)
-
-**Build:** `scripts/06a-aim-engine.sh`
-
-**Call flow:** [docs/call-flows/06a-aim-engine.md](docs/call-flows/06a-aim-engine.md) — AIMModel CR registration and routing config.
-
----
-
-### AMD Resource Manager (AIRM)
-
-**Role:** Pre-built Helm chart for GPU/resource management UI and APIs (not built from source).
-
-**Docs:**
-
-- Chart: `oci://docker.io/amdenterpriseai/charts/airm` (see [eai-suite-z13-guide.md](eai-suite-z13-guide.md))
-
-**Deploy:** `scripts/06b-airm-workbench.sh`
-
-**Call flow:** [docs/call-flows/06b-airm-aiwb.md](docs/call-flows/06b-airm-aiwb.md) — UI/SSO at top of stack; resolves AIMModel → llama endpoint.
-
----
-
-### AMD AI Workbench (AIWB)
-
-**Role:** Pre-built Helm chart for model catalog, chat UI, and Hugging Face integration.
-
-**Docs:**
-
-- Chart: `oci://docker.io/amdenterpriseai/charts/aiwb` (see [eai-suite-z13-guide.md](eai-suite-z13-guide.md))
-
-**Deploy:** `scripts/06b-airm-workbench.sh` — UI at `https://aiwbui.<DOMAIN>`
-
-**E2E:** Playwright tests in `tests/e2e/test_aiwb_ui.py`
-
----
-
-### [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)
-
-**Role:** LLM inference; **Vulkan backend required** for Gemma 4 on gfx1151 (HIP/ROCm loop bug). Serves OpenAI-compatible API on port 8080.
-
-**Docs:**
-
-- [Repository](https://github.com/ggml-org/llama.cpp)
-- [Build documentation](https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md)
-- [llama-server](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
-- [Vulkan backend](https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md#vulkan)
-
-**Build:** `scripts/07-llama-cpp.sh`
-
-**Call flow:** [docs/call-flows/07-llama-cpp.md](docs/call-flows/07-llama-cpp.md) — **primary token path:** HTTP → GGML → Vulkan → `amdgpu` → gfx1151.
+llama.cpp uses **`ensure_git_repo`** to preserve branch `gfx1151-rdna35-tuning` across rebuilds.
 
 ---
 
@@ -216,23 +246,73 @@ ROCm 7.2.1 is installed; `gfx1151` is detected. If `rocm-smi` still reports ~4 G
 ```bash
 source /home/magnus/projects/venvs/amd/bin/activate
 cd /home/magnus/projects/amdeai
-pytest tests/build -v          # after each repo build
-pytest tests/integration -v  # after k8s operators are up
-pytest tests/e2e -v          # requires UIs + port-forwards
+pytest tests/build -v
+pytest tests/integration -v
+pytest tests/e2e -v
 ```
 
-## Script order
+---
+
+## Repositories (with call-flow links)
+
+### ROCm (host stack)
+
+**Role:** Standard GPU compute (HIP, KFD). Required for device plugin and cluster inference.
+
+**Call flow:** [docs/call-flows/01-rocm-host.md](docs/call-flows/01-rocm-host.md)
+
+### k3s
+
+**Role:** Lightweight Kubernetes; registry on :32000.
+
+**Call flow:** [docs/call-flows/02-k3s.md](docs/call-flows/02-k3s.md)
+
+### [ROCm/k8s-device-plugin](https://github.com/ROCm/k8s-device-plugin)
+
+**Role:** Advertises `amd.com/gpu`.
+
+**Build:** `scripts/03-gpu-plugin.sh`  
+**Call flow:** [docs/call-flows/03-k8s-device-plugin.md](docs/call-flows/03-k8s-device-plugin.md)
+
+### Platform layer
+
+**Deploy:** `scripts/04-platform.sh`  
+**Call flow:** [docs/call-flows/04-platform.md](docs/call-flows/04-platform.md)
+
+### [silogen/cluster-forge](https://github.com/silogen/cluster-forge)
+
+**Build:** `scripts/05a-cluster-forge.sh`  
+**Call flow:** [docs/call-flows/05a-cluster-forge.md](docs/call-flows/05a-cluster-forge.md)
+
+### [silogen/kaiwo](https://github.com/silogen/kaiwo)
+
+**Role:** Standard EAI workload orchestrator (KaiwoJob → HIP pods).
+
+**Build:** `scripts/05b-kaiwo.sh`  
+**Call flow:** [docs/call-flows/05b-kaiwo.md](docs/call-flows/05b-kaiwo.md)
+
+### [amd-enterprise-ai/aim-engine](https://github.com/amd-enterprise-ai/aim-engine)
+
+**Build:** `scripts/06a-aim-engine.sh`  
+**Call flow:** [docs/call-flows/06a-aim-engine.md](docs/call-flows/06a-aim-engine.md)
+
+### AIRM + AI Workbench
+
+**Deploy:** `scripts/06b-airm-workbench.sh`  
+**Call flow:** [docs/call-flows/06b-airm-aiwb.md](docs/call-flows/06b-airm-aiwb.md)
+
+### [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp)
+
+**Role:** Local inference (Vulkan + HIP). Branch `gfx1151-rdna35-tuning` for Strix Halo.
+
+**Build:** `scripts/07-llama-cpp.sh`  
+**Call flow:** [docs/call-flows/07-llama-cpp.md](docs/call-flows/07-llama-cpp.md)
+
+---
+
+## Disk checkpoints
 
 ```bash
-bash scripts/lib/disk-report.sh baseline --baseline
-bash scripts/00-prerequisites.sh
-bash scripts/01-host-rocm.sh    # may require reboot
-bash scripts/02-kubernetes.sh
-bash scripts/03-gpu-plugin.sh
-bash scripts/04-platform.sh
-bash scripts/05a-cluster-forge.sh
-bash scripts/05b-kaiwo.sh
-bash scripts/06a-aim-engine.sh
-bash scripts/06b-airm-workbench.sh   # needs HF_TOKEN
-bash scripts/07-llama-cpp.sh
+bash scripts/lib/disk-report.sh <label>
+# log: ~/.cache/amdeai/disk-log.txt
 ```

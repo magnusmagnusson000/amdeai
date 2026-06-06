@@ -2,7 +2,9 @@
 
 **Platform:** Asus Z13 · Radeon 8060S (gfx1151, RDNA 3.5) · 128 GB LPDDR5x · Ubuntu 24.04 LTS  
 **Primary model:** Gemma 4 26B-A4B Q4\_K\_M (GGUF, ~14 GB quantised)  
-**Inference engine:** llama.cpp Vulkan (host systemd service on port 8080)
+**Standard inference:** ROCm HIP via Kaiwo + vLLM (cluster GPU pods)  
+**Local host inference:** llama.cpp — Vulkan for Gemma 4 (HIP workaround); HIP for SLMs after gfx1151 patches  
+**gfx1151 guide:** [docs/gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md)
 
 This document covers:
 
@@ -37,9 +39,9 @@ This document covers:
 │  Layer 2 — Kubernetes node runtime                                   │
 │  k3s kubelet  ·  containerd  ·  local registry :32000               │
 ├──────────────────────────────────────────────────────────────────────┤
-│  Layer 1 — Host inference (PRIMARY PATH)                             │
-│  llama-server (systemd)  ·  GGML graph  ·  Vulkan backend           │
-│  Mesa RADV (libvulkan_radeon.so)                                     │
+│  Layer 1 — Host inference (local Workbench endpoint)                 │
+│  llama-server (systemd)  ·  GGML  ·  Vulkan (Gemma) or HIP (SLM)   │
+│  Mesa RADV or ROCm HIP → amdgpu                                      │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Layer 0 — Kernel + hardware                                         │
 │  amdgpu DRM/KFD  ·  ROCm 7.2.3 userspace  ·  gfx1151 CUs           │
@@ -47,9 +49,47 @@ This document covers:
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Primary call flow — local Gemma 4 via llama.cpp Vulkan
+### 1.2 Standard EAI call flow — ROCm HIP via Kaiwo + vLLM
 
-This is the path followed for every token when a user chats with the registered **Gemma 4 26B-A4B (local)** model.
+This is the **canonical Enterprise AI suite path** for GPU inference in Kubernetes. ROCm HIP drives compute inside GPU pods scheduled by Kaiwo and Kueue.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant AIWB_API as AIWB / External client
+    participant Kaiwo    as Kaiwo operator
+    participant Kueue    as Kueue ClusterQueue
+    participant Plugin   as k8s-device-plugin
+    participant Pod      as GPU Pod (vLLM / HIP)
+    participant ROCm     as ROCm HIP runtime
+    participant KFD      as amdgpu KFD
+    participant HW       as gfx1151
+
+    AIWB_API->>Kaiwo: Create KaiwoJob (GPU count, image, model)
+    Kaiwo->>Kueue: Submit workload to ClusterQueue "amd-gfx1151"
+    Kueue->>Kueue: Check ResourceFlavor quota (amd.com/gpu: 1)
+    Kueue-->>Kaiwo: Workload admitted
+    Kaiwo->>Plugin: Pod scheduled with amd.com/gpu=1
+    Plugin->>Plugin: Expose /dev/kfd, /dev/dri/renderD128 to pod
+    Plugin-->>Pod: Container started, GPU device nodes mounted
+
+    AIWB_API->>Pod: POST /v1/chat/completions (via Service/Ingress)
+    Pod->>ROCm: HIP kernel launches (hipLaunchKernel / hipblasGemm)
+    ROCm->>KFD: KFD ioctl — queue create, IB submit
+    KFD->>HW: GPU ring execution
+    HW-->>KFD: Completion
+    KFD-->>ROCm: HIP event signal
+    ROCm-->>Pod: Logits output
+    Pod-->>AIWB_API: Token stream response
+```
+
+### 1.3 Local host path — llama.cpp (Workbench → AIMModel → :8080)
+
+Used when a model is registered via **AIMModel** pointing at host `llama-server`. This stack registers **Gemma 4** for AI Workbench chat.
+
+> **gfx1151 note:** Gemma 4's MoE layer triggers a known HIP bug on gfx1151 ([#21416](https://github.com/ggml-org/llama.cpp/issues/21416)). **Vulkan** is the default backend for Gemma 4. **HIP** (branch `gfx1151-rdna35-tuning`) is used for SLMs and after upstream fixes. See [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md).
+
+This is the path followed for every token when a user chats with the registered **Gemma 4 26B-A4B (local)** model (Vulkan backend).
 
 ```mermaid
 sequenceDiagram
@@ -121,51 +161,15 @@ sequenceDiagram
     Browser-->>User: See complete response appear word-by-word
 ```
 
-### 1.3 Alternative path — cluster GPU inference via Kaiwo + vLLM
-
-This path is **installed and tested** but is bypassed for the primary local Gemma endpoint. It activates when a `KaiwoJob` workload (e.g., a vLLM-served model) is submitted to the Kubernetes cluster.
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant AIWB_API as AIWB / External client
-    participant Kaiwo    as Kaiwo operator
-    participant Kueue    as Kueue ClusterQueue
-    participant Plugin   as k8s-device-plugin
-    participant Pod      as GPU Pod (vLLM / HIP)
-    participant ROCm     as ROCm HIP runtime
-    participant KFD      as amdgpu KFD
-    participant HW       as gfx1151
-
-    AIWB_API->>Kaiwo: Create KaiwoJob (GPU count, image, model)
-    Kaiwo->>Kueue: Submit workload to ClusterQueue "amd-gfx1151"
-    Kueue->>Kueue: Check ResourceFlavor quota (amd.com/gpu: 1)
-    Kueue-->>Kaiwo: Workload admitted
-    Kaiwo->>Plugin: Pod scheduled with amd.com/gpu=1
-    Plugin->>Plugin: Expose /dev/kfd, /dev/dri/renderD128 to pod
-    Plugin-->>Pod: Container started, GPU device nodes mounted
-
-    AIWB_API->>Pod: POST /v1/chat/completions (via Service/Ingress)
-    Pod->>ROCm: HIP kernel launches (hipLaunchKernel / hipblasGemm)
-    ROCm->>KFD: KFD ioctl — queue create, IB submit
-    KFD->>HW: GPU ring execution
-    HW-->>KFD: Completion
-    KFD-->>ROCm: HIP event signal
-    ROCm-->>Pod: Logits output
-    Pod-->>AIWB_API: Token stream response
-```
-
-> **Note:** On gfx1151 (Radeon 8060S), Gemma 4's MoE layer triggers a known HIP infinite-loop bug ([llama.cpp issue #21416](https://github.com/ggml-org/llama.cpp/issues/21416)). The Vulkan path in llama.cpp is the validated workaround. The HIP/Kaiwo path is used for other models and workloads.
-
-### 1.4 Components NOT on the per-token hot path
+### 1.4 Components NOT on every token hot path
 
 | Component | Role | When it acts |
 |-----------|------|-------------|
 | cluster-forge / ArgoCD | GitOps installer | Deploy time only |
-| k8s-device-plugin | `amd.com/gpu` resource advertising | Kubelet scheduling only |
-| Longhorn | Persistent storage | Pod PVC I/O (not GGUF file) |
+| k8s-device-plugin | `amd.com/gpu` resource advertising | Kubelet scheduling (standard HIP path) |
+| Longhorn | Persistent storage | Pod PVC I/O (not host GGUF file) |
 | KServe / KubeRay | Alternative serving frameworks | Only if InferenceService deployed |
-| ROCm HIP in llama.cpp | Alternative GPU backend | Disabled for gfx1151 + Gemma 4 |
+| ROCm HIP in host llama.cpp | GPU backend for local server | Standard for SLMs; Vulkan for Gemma 4 on gfx1151 |
 | AIRM | GPU inventory / policies | Dashboard queries, not token path |
 | MetalLB | LoadBalancer VIP | TCP connection setup only |
 
@@ -180,7 +184,7 @@ sequenceDiagram
 
 ### Quick summary
 
-ROCm (Radeon Open Compute platform) is AMD's open-source GPU compute stack. It provides the HIP runtime, compiler toolchain (hipcc), math libraries (rocBLAS, rocFFT, MIOpen), management tools (rocm-smi, rocminfo), and the HSA kernel driver interface (KFD). On this system it underpins GPU device plugin builds, in-cluster HIP workloads, and provides the `amdgpu` kernel module that both the Vulkan (primary) and HIP (alternative) paths depend on.
+ROCm (Radeon Open Compute platform) is AMD's open-source GPU compute stack and the **standard GPU substrate for the Enterprise AI suite**. It provides HIP, rocBLAS, MIOpen, rocm-smi, and KFD. Cluster inference (Kaiwo → vLLM) uses ROCm HIP on every token. Host llama.cpp may use Vulkan (Gemma 4 on gfx1151) or HIP (SLMs and post-patch workloads). See [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md) for gfx1151-specific fixes.
 
 ### Detailed explanation
 

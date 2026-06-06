@@ -1,39 +1,30 @@
 # Call flow: amd-enterprise-ai/aim-engine
 
-**Source:** `~/eai-build/aim-engine/`
+**Source:** `~/eai-build/aim-engine/`  
+**Script:** `scripts/06a-aim-engine.sh`
 
-Kubernetes **operator** for inference lifecycle and routing — control plane adjacent to the chat hot path.
+Kubernetes operator for **AIMModel** CRs and routing — control plane adjacent to chat.
 
-## Downward (configuration → runtime)
+## Downward
 
-1. **Helm install** applies `dist/crds.yaml` → API server registers `AIMModel`, routing CRDs.
-2. **Controller manager** (`cmd/main.go` or `main.go` under operator layout) watches CRs via controller-runtime.
-3. On `AIMModel` create/update:
-   - Validates `spec.endpoint` (URL, type OpenAI).
-   - May configure **Gateway API** routes (`clusterRuntimeConfig.spec.routing.enabled`) for in-cluster backends.
-   - For **external host endpoint** (our llama-server), effect is primarily **registration** — no pod spawn.
+1. Helm installs CRDs + controller manager.
+2. **AIMModel** CR registers inference endpoints (URL, OpenAI type, capabilities).
+3. For external host endpoints (`http://<node-ip>:8080`), operator **registers** only — no pod spawn.
 
-## Chat prompt path involvement
+## Chat path (local Gemma)
 
-For local Gemma endpoint:
+1. AI Workbench resolves model name → reads **AIMModel** CR.
+2. Backend POSTs to `spec.endpoint.url` (host llama-server).
+3. AIM Engine is **not** in the per-token loop unless Gateway routing is enabled for in-cluster backends.
 
-- Workbench reads **AIMModel** → HTTP to host.
-- AIM Engine is **not** in the per-token loop unless routing sends traffic through an AIM-managed gateway Service.
+## Upward
 
-## Upward (status)
+- `kubectl describe aimmodel gemma-4-26b-a4b-local`
+- Status conditions: Ready, observed generation
 
-- Operator writes **status** subresource: conditions (Ready), observed generation.
-- Events recorded on CR for debugging (`kubectl describe aimmodel`).
+## Standard vs local
 
-## Source reading order
-
-| Order | Area |
-|-------|------|
-| 1 | `api/` — CRD Go types |
-| 2 | `internal/controller/` — reconcile loops |
-| 3 | `dist/chart/templates/` — deployment, RBAC, webhooks |
-
-## Build artefacts
-
-- `make crds` → `dist/crds.yaml`
-- `make helm` → `dist/chart/`
+| Mode | AIM Engine role |
+|------|-----------------|
+| Cluster vLLM | May configure Gateway routes to Service |
+| Host llama-server | CR registration + URL lookup only |

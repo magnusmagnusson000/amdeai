@@ -1,19 +1,40 @@
 # Call flow: prerequisites (build toolchain)
 
+**Script:** `scripts/00-prerequisites.sh`  
 **Not in runtime inference path.**
 
 ## Purpose
 
-Downloads and installs tools used **only at build/deploy time**:
+Installs tools used at **build and deploy time**:
 
-- Go → compile cluster-forge, kaiwo, aim-engine helpers
-- CMake/ninja → llama.cpp Vulkan build
-- Helm/kubectl → deploy charts
-- Docker → build device-plugin and operator images
-- Python venv (`/home/magnus/projects/venvs/amd`) → pytest + Playwright validation
+| Tool | Used by |
+|------|---------|
+| Go | cluster-forge, kaiwo, aim-engine |
+| CMake / ninja | llama.cpp (Vulkan + HIP) |
+| Helm / kubectl | All Kubernetes layers |
+| Docker | k8s-device-plugin, kaiwo operator images |
+| Python venv | pytest, Playwright |
 
-## “Flow” during build
+**Venv:** `/home/magnus/projects/venvs/amd`
 
-Developer runs `scripts/00-prerequisites.sh` → packages land on disk → subsequent scripts invoke compilers.
+```bash
+source /home/magnus/projects/venvs/amd/bin/activate
+pip install -r tests/requirements.txt
+playwright install chromium
+```
 
-No chat prompt touches these binaries at inference time.
+## Study tree sync
+
+Refresh all upstream repos under `~/eai-build/`:
+
+```bash
+bash scripts/sync-eai-build.sh
+# or initial clone:
+bash scripts/fetch-study-sources.sh
+```
+
+## Relation to call flows
+
+Prerequisites enable the numbered install pipeline (`00` … `07`). No chat token traverses these binaries at inference time.
+
+See [README.md](../../README.md) for the full system install guide.

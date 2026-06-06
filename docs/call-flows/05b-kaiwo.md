@@ -1,38 +1,52 @@
 # Call flow: silogen/kaiwo
 
-**Source:** `~/eai-build/kaiwo/`
+**Source:** `~/eai-build/kaiwo/`  
+**Script:** `scripts/05b-kaiwo.sh`
 
-**Workload orchestrator** for AI jobs on Kubernetes — active when inference runs **inside GPU pods**, not for host `llama-server`.
+**Standard EAI workload orchestrator** — schedules GPU inference pods (vLLM, Ray, training) on gfx1151 nodes.
 
-## Downward (job submission → pod)
+## Downward (job → pod → HIP)
 
-1. User or CI creates **KaiwoJob** (CRD) or higher-level wrapper referencing GPU + image.
-2. **kaiwo-controller-manager** reconciles:
-   - Checks node labels: `kaiwo/worker`, `kaiwo/gpu-model`, topology labels.
-   - Integrates **Kueue** `ClusterQueue` / `ResourceFlavor` `amd-gfx1151`.
-3. **Kueue** admits workload when `amd.com/gpu` quota available.
-4. **kube-scheduler** binds pod to node with device plugin resource.
-5. **kubelet** allocates `amd.com/gpu` via device plugin socket.
-6. Container starts (e.g. vLLM image) → **ROCm HIP** path inside pod.
+1. User or API creates **KaiwoJob** with GPU count and container image.
+2. **kaiwo-controller** reconciles; submits to **Kueue** `ClusterQueue` / flavor `amd-gfx1151`.
+3. **Kueue** admits when `amd.com/gpu` quota available.
+4. **Scheduler** binds pod to node with `kaiwo/gpu-model=radeon-8060s`.
+5. **Device plugin** allocates GPU; container mounts `/dev/kfd`, `/dev/dri`.
+6. **vLLM / PyTorch** runs **ROCm HIP** inference.
 
-## Chat prompt path (cluster inference variant)
+## ROCm env in GPU pods
 
-If chat went through a Kaiwo-managed vLLM Service instead of host llama.cpp:
+Inherit from node/DaemonSet or set explicitly in KaiwoJob pod spec:
 
-Browser → Ingress → KServe/Service → **Pod: vLLM** → HIP → ROCm → amdgpu → hardware.
+```yaml
+env:
+  - name: HSA_OVERRIDE_GFX_VERSION
+    value: "11.5.1"
+  - name: HSA_ENABLE_SDMA
+    value: "0"
+  - name: MIOPEN_FIND_ENFORCE
+    value: "1"
+```
 
-**This stack’s Gemma 4 local path bypasses Kaiwo** for tokens.
+## Chat prompt path (standard cluster inference)
 
-## Upward (status → user)
+```
+Browser → AIWB → KaiwoJob → GPU pod (vLLM) → HIP → KFD → gfx1151 → tokens
+```
 
-- KaiwoJob status: phases, pod names, failures (e.g. SchedulingGated if labels missing).
-- Events explain TAS/topology gates.
+**Local Gemma** via host llama-server **bypasses Kaiwo** for tokens; Kaiwo remains installed for other models and workloads.
 
-## Source reading order
+## ResourceFlavor (this stack)
+
+Created by `05b-kaiwo.sh`:
+
+- Flavor: `amd-gfx1151`
+- Quota: `amd.com/gpu: 1`, CPU/memory limits for single-node Z13
+
+## Source reading
 
 | Path | Purpose |
 |------|---------|
-| `cmd/kaiwo/` | CLI |
 | `internal/controller/` | Reconcilers |
-| `config/crd/` | CRD manifests |
-| `Makefile` | `docker-build`, `deploy` |
+| `pkg/workloads/common/podspec.go` | GPU affinity |
+| `workloads/inference/LLMs/` | Sample vLLM KaiwoJobs |

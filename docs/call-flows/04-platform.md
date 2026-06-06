@@ -1,43 +1,36 @@
 # Call flow: Layer 4 platform (Helm charts)
 
+**Script:** `scripts/04-platform.sh`
+
 Components: **cert-manager**, **MetalLB**, **Longhorn**, **Gateway API**, **Kueue**, **KubeRay**, **KServe**.
 
-## cert-manager
+## Role in EAI suite
 
-- **Down:** Issues TLS Secrets for ingress hostnames (`aiwbui.*`, `airmui.*`).
-- **Chat path:** TLS termination before UI/API; no token logic.
-- **Up:** Certificate Ready → browser trusts (or self-signed warning).
+Platform charts provide **TLS, networking, storage, and queuing** for cluster services. They enable AI Workbench HTTPS URLs and Kaiwo job admission.
 
-## MetalLB
+## Per-component summary
 
-- **Down:** Assigns `LoadBalancer` VIP = node IP for Services.
-- **Chat path:** External HTTPS to workbench Service IP.
-- **Up:** Traffic reaches ingress controller pods.
+| Chart | Down (request) | Chat path |
+|-------|----------------|-----------|
+| **cert-manager** | TLS Secrets for ingress | HTTPS to AIWB/AIRM |
+| **MetalLB** | LoadBalancer VIP = node IP | External access to UIs |
+| **Longhorn** | PVCs for pod storage | Model caches, DBs in cluster |
+| **Gateway API** | HTTPRoute → backends | AIM routing (if enabled) |
+| **Kueue** | Admits KaiwoJobs | **Standard GPU job path** |
+| **KubeRay / KServe** | Ray / InferenceService | Alternative serving |
 
-## Longhorn
+## Standard inference interaction
 
-- **Down:** PVC provisioner for pod persistent volumes (models, DBs).
-- **Chat path:** Storage for **cluster** model caches / DBs — not host GGUF file.
-- **Up:** I/O completes to PVC-backed pods.
+```
+User → MetalLB/TLS → AIWB → (optional) KaiwoJob → Kueue admit → GPU pod
+```
 
-## Gateway API
+Local Gemma via host llama-server **minimizes** Longhorn/KServe on the token hot path but platform charts remain required for Workbench UI.
 
-- **Down:** HTTPRoute attaches hostnames to backend Services.
-- **Chat path:** AIM Engine routing may reference Gateway classes.
-- **Up:** 200 from backend routed to client.
+## Deploy
 
-## Kueue
+```bash
+bash scripts/04-platform.sh
+```
 
-- **Down:** Admits KaiwoJobs when quota in `ClusterQueue`.
-- **Chat path:** Only for **queued GPU jobs**, not host llama.
-- **Up:** Workload admitted → pod created.
-
-## KubeRay / KServe
-
-- Alternative **distributed / model serving** frameworks.
-- **Chat path (if used):** InferenceService → predictor pod → GPU.
-- **Up:** Prediction response HTTP/gRPC.
-
-## Summary
-
-Platform layer shapes **secure access and storage**; only some charts participate in chat depending on deployment mode. Local Gemma on llama-server minimizes Longhorn/KServe on hot path.
+Force reinstall is default (`EAI_FORCE_REBUILD=1`).
