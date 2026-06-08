@@ -1,6 +1,8 @@
 """E2E: Argo CD UI (requires port-forward to localhost:8443)."""
 from __future__ import annotations
 
+import re
+
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -16,7 +18,7 @@ def test_login(page: Page, argocd_password: str | None):
     page.get_by_label("Username").fill("admin")
     page.get_by_label("Password").fill(argocd_password)
     page.get_by_role("button", name="Sign In").click()
-    expect(page).to_have_url(/applications/, timeout=30000)
+    expect(page).to_have_url(re.compile(r"applications"), timeout=30000)
 
 
 @pytest.mark.skipif(not __import__("os").environ.get("E2E_ARGOCD", ""), reason="E2E_ARGOCD not set")
@@ -27,6 +29,6 @@ def test_applications_visible(page: Page, argocd_password: str | None):
     page.get_by_label("Username").fill("admin")
     page.get_by_label("Password").fill(argocd_password)
     page.get_by_role("button", name="Sign In").click()
-    expect(page.locator(".application-status-panel, [class*='application']")).to_have_count(
-        greater_than=0, timeout=30000
+    expect(page.locator(".application-status-panel, [class*='application']").first).to_be_visible(
+        timeout=30000
     )

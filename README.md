@@ -327,7 +327,67 @@ pytest tests/e2e -v
 ### [amd-enterprise-ai/aim-engine](https://github.com/amd-enterprise-ai/aim-engine)
 
 **Build:** `scripts/06a-aim-engine.sh`  
-**Call flow:** [docs/call-flows/06a-aim-engine.md](docs/call-flows/06a-aim-engine.md)
+**Call flow:** [docs/call-flows/06a-aim-engine.md](docs/call-flows/06a-aim-engine.md)  
+**Deep-dive:** [docs/AIM_ENGINE_DEEP_DIVE.md](docs/AIM_ENGINE_DEEP_DIVE.md)
+
+#### Registering a local model endpoint (host llama-server)
+
+AIM Engine v0.2.x no longer accepts `spec.endpoint`/`displayName`/`capabilities` on `AIMModel`. The pattern used by this repo is:
+
+1. **Service + Endpoints** — bridge the cluster to the host `llama-server` port:
+
+```bash
+MY_IP=$(hostname -I | awk '{print $1}')
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-model-local
+  namespace: default
+spec:
+  ports:
+  - name: http
+    port: 8081
+    targetPort: 8081
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: my-model-local
+  namespace: default
+subsets:
+- addresses:
+  - ip: ${MY_IP}
+  ports:
+  - name: http
+    port: 8081
+EOF
+```
+
+2. **AIMModel catalog stub** — with discovery disabled and annotations for display metadata:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMModel
+metadata:
+  name: my-model-local
+  namespace: default
+  annotations:
+    aim.eai.amd.com/external-endpoint: "http://${MY_IP}:8081"
+    aim.eai.amd.com/display-name: "My Model (local GGUF)"
+    aim.eai.amd.com/model-id: "my-model"
+spec:
+  image: amdenterpriseai/aim-base:0.11.0
+  discovery:
+    extractMetadata: false
+    createServiceTemplates: false
+EOF
+```
+
+The `AIMModel` becomes `Ready` immediately (no discovery job, no pod spawn). AIWB resolves the endpoint via the `Service` name within the cluster. See `scripts/07-llama-cpp.sh` (port 8080) and `scripts/08-gemma4-31b.sh` (port 8081) for the working examples.
+
+For the fully-managed in-cluster path (GPU pod + model download), see [docs/AIM_ENGINE_DEEP_DIVE.md](docs/AIM_ENGINE_DEEP_DIVE.md).
 
 ### AIRM + AI Workbench
 

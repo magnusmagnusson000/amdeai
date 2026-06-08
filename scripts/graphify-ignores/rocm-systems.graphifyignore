@@ -1,0 +1,32 @@
+# ROCm runtime/systems monorepo (~18k files → ~1.5k).
+# Focus: HIP, CLR, ROCR runtime, rocm-smi — gfx1151 host stack study.
+# Parent dirs must be un-ignored before children (graphify gitignore semantics).
+
+*
+!README.md
+!CONTRIBUTING.md
+!docs/
+!docs/**
+!shared/
+!shared/**
+!projects/
+projects/**
+!projects/hip/
+!projects/hip/**
+!projects/clr/
+!projects/clr/**
+!projects/rocr-runtime/
+!projects/rocr-runtime/**
+!projects/rocm-core/
+!projects/rocm-core/**
+!projects/rocm-smi-lib/
+!projects/rocm-smi-lib/**
+!projects/rocminfo/
+!projects/rocminfo/**
+
+**/test/**
+**/tests/**
+**/unittests/**
+**/benchmark/**
+**/hip-tests/**
+**/rccl-tests/**

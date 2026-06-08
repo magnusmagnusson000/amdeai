@@ -87,6 +87,7 @@ clone_depth1 https://github.com/kubernetes-sigs/gateway-api.git "$ROOT/gateway-a
 clone_depth1 https://github.com/kubernetes-sigs/kueue.git "$ROOT/kueue"
 clone_depth1 https://github.com/ray-project/kuberay.git "$ROOT/kuberay"
 clone_depth1 https://github.com/kserve/kserve.git "$ROOT/kserve"
+clone_depth1 https://github.com/silogen/cluster-bloom.git "$ROOT/cluster-bloom"
 clone_depth1 https://github.com/silogen/cluster-forge.git "$ROOT/cluster-forge"
 clone_depth1 https://github.com/silogen/kaiwo.git "$ROOT/kaiwo"
 clone_depth1 https://github.com/amd-enterprise-ai/aim-engine.git "$ROOT/aim-engine"
@@ -130,6 +131,7 @@ lines = [
     f"| kueue | `{root / 'kueue'}` | git repo | Queueing/scheduling |",
     f"| kuberay | `{root / 'kuberay'}` | git repo | Ray operator |",
     f"| kserve | `{root / 'kserve'}` | git repo | Serving platform |",
+    f"| cluster-bloom | `{root / 'cluster-bloom'}` | git repo | RKE2 + ROCm + Cluster Forge installer |",
     f"| cluster-forge | `{root / 'cluster-forge'}` | git repo | GitOps platform bootstrap |",
     f"| kaiwo | `{root / 'kaiwo'}` | git repo | AI workload orchestration |",
     f"| aim-engine | `{root / 'aim-engine'}` | git repo | AIM operator |",

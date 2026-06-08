@@ -51,6 +51,27 @@ def airm_password() -> str | None:
 
 
 @pytest.fixture(scope="session")
+def devuser_password() -> str | None:
+    try:
+        raw = subprocess.check_output(
+            [
+                "kubectl",
+                "get",
+                "secret",
+                "airm-realm-credentials",
+                "-n",
+                "keycloak",
+                "-o",
+                "jsonpath={.data.KEYCLOAK_INITIAL_DEVUSER_PASSWORD}",
+            ],
+            text=True,
+        )
+        return base64.b64decode(raw).decode() if raw else None
+    except subprocess.CalledProcessError:
+        return None
+
+
+@pytest.fixture(scope="session")
 def keycloak_password() -> str | None:
     try:
         raw = subprocess.check_output(

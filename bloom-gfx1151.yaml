@@ -1,6 +1,7 @@
 # Cluster Bloom reference config — Asus Z13 / Strix Halo (gfx1151)
 # Set DOMAIN to <node-ip>.nip.io before running (see docs/BLOOM_GFX1151_INSTALL.md)
 
+# Must match node IP + nip.io — also required by envoy-gateway-config CoreDNS rewrite
 DOMAIN: "192.168.32.13.nip.io"
 FIRST_NODE: true
 GPU_NODE: true
@@ -10,6 +11,8 @@ NO_DISKS_FOR_CLUSTER: true
 SKIP_RANCHER_PARTITION_CHECK: true
 CERT_OPTION: generate
 CLUSTERFORGE_RELEASE: "latest"
+# ClusterForge bootstraps its own ArgoCD (Helm chart). Bloom's core-install ArgoCD conflicts with it.
+INSTALL_ARGOCD: false
 PRELOAD_IMAGES: ""
 # DOCKERHUB_USER: ""
 # DOCKERHUB_TOKEN: ""

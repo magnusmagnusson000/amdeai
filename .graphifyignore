@@ -1,0 +1,12 @@
+# Keep graphify scoped to amdeai itself — not local study trees or venvs.
+clusterforge/
+.venv*/
+.venv-e2e/
+backups/
+additional_node_command.txt
+bloom.yaml
+.bloom/
+bloom
+bloom-playbook/
+bloom*.log
+graphify-out/20*/

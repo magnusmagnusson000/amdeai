@@ -1,0 +1,63 @@
+# Graphify scope for AMD ROCm llvm-project fork (~80k files → ~1.7k).
+# Goal: HIP/AMDGPU compiler path for gfx1151 study, not the full LLVM monorepo.
+#
+# Strategy: ignore everything, then allow ROCm-relevant subtrees (no tests).
+# Use subtree re-ignore (e.g. llvm/**) after !llvm/ so sibling paths stay excluded.
+
+*
+!amd/
+!amd/**
+!llvm/
+llvm/**
+!llvm/lib/
+llvm/lib/**
+!llvm/lib/Target/
+llvm/lib/Target/**
+!llvm/lib/Target/AMDGPU/
+!llvm/lib/Target/AMDGPU/**
+!llvm/include/
+llvm/include/**
+!llvm/include/llvm/
+llvm/include/llvm/**
+!llvm/include/llvm/Target/
+llvm/include/llvm/Target/**
+!llvm/include/llvm/Target/AMDGPU/
+!llvm/include/llvm/Target/AMDGPU/**
+!clang/
+clang/**
+!clang/lib/
+clang/lib/**
+!clang/lib/Driver/
+!clang/lib/Driver/**
+!clang/include/
+clang/include/**
+!clang/include/clang/
+clang/include/clang/**
+!clang/include/clang/Driver/
+!clang/include/clang/Driver/**
+!clang/lib/CodeGen/
+!clang/lib/CodeGen/**
+!offload/
+offload/**
+!offload/DeviceRTL/
+!offload/DeviceRTL/**
+!offload/plugins/
+!offload/plugins/**
+!offload/include/
+!offload/include/**
+!lld/
+lld/**
+!lld/Common/
+!lld/Common/**
+!lld/ELF/
+!lld/ELF/**
+!lld/COFF/
+!lld/COFF/**
+!README.md
+!LICENSE.TXT
+
+# Strip tests even inside allowed trees
+**/test/**
+**/unittests/**
+**/benchmarks/**
+**/Inputs/**

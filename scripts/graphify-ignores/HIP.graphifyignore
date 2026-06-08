@@ -1,0 +1,11 @@
+# HIP: code/runtime only — doc chunks repeatedly hang Ollama past api-timeout.
+# gfx1151 study needs include/, src/, cmake; skip all Sphinx/RST docs.
+
+docs/**
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.svg
+**/*.drawio

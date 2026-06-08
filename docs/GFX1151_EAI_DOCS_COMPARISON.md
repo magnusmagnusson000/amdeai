@@ -31,7 +31,7 @@ The gaps are almost entirely in **hardware scope**, **install tooling**, and **g
 |------|---------------|-------------------|
 | Supported GPUs | MI300X / MI325X / M350X / MI355X only | Radeon 8060S (**gfx1151**, RDNA 3.5 APU) |
 | ROCm version | 7.0.2 recommended; **7.2.x not supported** | **7.2.3** installed and required for Strix Halo |
-| Kubernetes installer | [Cluster Bloom](https://github.com/silogen/cluster-bloom) → **RKE2** | **k3s** via `scripts/02-kubernetes.sh` |
+| Kubernetes installer | [Cluster Bloom](https://github.com/silogen/cluster-bloom) → **RKE2** | **Bloom → RKE2** (primary); k3s scripts remain lab alternative |
 | Inference in cluster | AIMs / vLLM in GPU pods (implied Instinct) | Same path: Kaiwo → vLLM → **ROCm HIP** |
 | Local host inference | Not documented | **llama.cpp** on host `:8080` (Workbench AIMModel) |
 | gfx1151 tuning | Not mentioned | GRUB, env vars, llama.cpp patches, firmware notes |
@@ -40,7 +40,42 @@ The gaps are almost entirely in **hardware scope**, **install tooling**, and **g
 
 ---
 
-## 2. Architecture alignment
+## 2. Platform coverage matrix (chapter-by-chapter)
+
+Walk-through of the [AMD Enterprise AI documentation index](https://enterprise-ai.docs.amd.com/en/latest/index.html) against our **Z13 Bloom install** (2026-06-08, final validation). Status reflects phased Bloom install, GitOps workarounds, and passing UI E2E tests. See [BLOOM_GFX1151_INSTALL.md](BLOOM_GFX1151_INSTALL.md) for the full fix log.
+
+| Doc chapter | Official doc | Documented capability | Z13 install status | Automated test | Delta / notes |
+|-------------|--------------|----------------------|-------------------|----------------|---------------|
+| **Platform overview** | [platform-overview.html](https://enterprise-ai.docs.amd.com/en/latest/platform-overview.html) | Reference stack: Workbench, Resource Manager, Kaiwo, K8s, Cluster Forge, AIMs | **Working** — full stack up; UIs reachable via HTTPS | Integration: 4/7 pass; E2E: 3/3 pass | gfx1151 not in official hardware scope; Bloom `GPU_GFX1151` path |
+| **Quick start** | (linked from index) | Fast path to running stack | **Working** — Bloom + ClusterForge bootstrap complete | E2E login PASS | Phased install: full `bloom cli`, then `--tags metallb,domain` if needed |
+| **On-premises install** | [on-premises-installation.html](https://enterprise-ai.docs.amd.com/en/latest/platform-infrastructure/on-premises-installation.html) | Bloom → RKE2 → ROCm → Cluster Forge; `.nip.io` domain; login URLs | **Working** — RKE2 + HTTPS on `:443` + login URLs | E2E: 3/3 PASS | Z13 deltas: gfx1151 + ROCm 7.2.3 + `NO_DISKS_FOR_CLUSTER` + `INSTALL_ARGOCD: false` + GitOps patches (AIWB chart/route) |
+| **Login** | [login.html](https://enterprise-ai.docs.amd.com/en/latest/login.html) | `devuser@<domain>` / Keycloak SSO between AIRM and AIWB | **Working** — Keycloak Healthy; SSO via NextAuth redirect | E2E login PASS | Playwright uses `Sign in with Keycloak` → `devuser@192.168.32.13.nip.io` |
+| **AI Workbench overview** | [workbench/overview.html](https://enterprise-ai.docs.amd.com/en/latest/workbench/overview.html) | Combined mode with AIRM; AIM catalog, workspaces, fine-tune, chat | **Working** — UI pods Running; models page loads | `test_aiwb_ui` PASS (2/2) | Chart `1.1.9` + HTTPRoute parent `envoy-gateway-system` workarounds |
+| **Deploy model / inference** | (workbench chapter) | Deploy AIMs, run inference via UI/CLI | **Not tested** | — | AIM Engine operator ready; no AIM deployment exercised on gfx1151 yet |
+| **Fine-tune / Access models** | (workbench chapter) | HF token, model catalog | **Partial** — models page reachable | `test_models_page_gemma` PASS | HF token not configured in this validation |
+| **Resource Manager overview** | [resource-manager/overview.html](https://enterprise-ai.docs.amd.com/en/latest/resource-manager/overview.html) | Clusters, orgs, projects, quotas, secrets | **Working** — `airm` Synced, Healthy | `test_airm_login` PASS | Infra (CNPG, RabbitMQ, external-secrets) healthy |
+| **AIRM getting started** | (resource-manager chapter) | GPU dashboards, project management | **Partial** — login works; dashboards not exercised | E2E login only | Further UI flows not automated |
+| **AIMs overview** | [aims/overview.html](https://enterprise-ai.docs.amd.com/en/latest/aims/overview.html) | Inference microservices on Instinct/Radeon Pro; OpenAI API | **Partial** — operators synced | `test_aimmodel_cr_accepted` FAIL | gfx1151 APU; AIM catalog targets Instinct profiles — runtime TBD |
+| **AIMs catalog / deploy** | (aims chapter) | Pull AIM images, deploy to GPU pods | **Not tested** | — | GPU scheduling works (`amd.com/gpu` allocatable) |
+| **Solution Blueprints** | [solution-blueprints/overview.html](https://enterprise-ai.docs.amd.com/en/latest/solution-blueprints/overview.html) | Helm-based reference apps (RAG, summarization, etc.) | **Not installed** | — | Not evaluated on 128 GB UMA laptop |
+| **Kaiwo** | [silogen/kaiwo](https://github.com/silogen/kaiwo) (overview link) | GPU workload orchestration, queues, gang scheduling | **Working** — operator Running, node labels applied | `test_operator_ready` PASS; queue/flavor FAIL | Kueue ResourceFlavor/ClusterQueue need extra small-cluster config |
+| **Kubernetes platform** | (implicit in install doc) | RKE2 via Bloom, device plugin, MetalLB | **Working** | GPU scheduling PASS | MetalLB + `cluster-tls` via Bloom `metallb,domain` tags |
+| **Cluster Forge** | [silogen/cluster-forge](https://github.com/silogen/cluster-forge) | GitOps bootstrap of full stack | **Working** (with workarounds) | — | Non-empty `domain` required; AIWB chart/route patches documented |
+| **Data backup / upgrade** | (platform-infrastructure chapters) | CNPG, Longhorn, MinIO backup; v2.0 upgrade | **Not evaluated** | — | `NO_DISKS_FOR_CLUSTER` — local-path not Longhorn |
+| **Local host inference** | *Not in official docs* | — | **Working** — `07-llama-cpp.sh`, HIP validate | `validate-hip-gfx1151.sh` PASS | amdeai-specific path for Z13 demo |
+
+### Test summary (2026-06-08, final)
+
+| Suite | Result |
+|-------|--------|
+| `pytest tests/integration/` | **4 passed, 3 failed** (Kueue flavor/queue, AIMModel CR) |
+| `scripts/validate-hip-gfx1151.sh` | **PASS** |
+| `pytest tests/e2e/` (Playwright) | **3 passed** — AIWB login + models page, AIRM login via Keycloak SSO |
+| Bloom `--tags metallb,domain` | **PASS** — 3 ok, 4 changed (after Ansible tag fix in cluster-bloom) |
+
+---
+
+## 3. Architecture alignment
 
 ### 2.1 Official platform overview
 
@@ -51,7 +86,7 @@ The gaps are almost entirely in **hardware scope**, **install tooling**, and **g
 | [AMD AI Workbench](https://enterprise-ai.docs.amd.com/en/latest/workbench/overview.html) | AIWB UI/API (Layer 7) | Yes |
 | [AMD Resource Manager](https://enterprise-ai.docs.amd.com/en/latest/resource-manager/overview.html) | AIRM (Layer 7, not on token hot path) | Yes |
 | [Kaiwo](https://github.com/silogen/kaiwo) | Kaiwo + Kueue (Layer 5, **standard HIP path**) | Yes |
-| Kubernetes platform | k3s (Layer 2–4) | Yes (different distro) |
+| Kubernetes platform | RKE2 via Bloom (primary); k3s scripts (lab) | Yes (Bloom matches official installer) |
 | [Cluster Forge](https://github.com/silogen/cluster-forge) | `05a-cluster-forge.sh` / GitOps bootstrap | Yes |
 | [AIMs](https://enterprise-ai.docs.amd.com/en/latest/aims/overview.html) | AIM Engine + AIMModel CR + optional AIM microservices | Partial — we use AIM Engine + host llama endpoint |
 
@@ -74,7 +109,7 @@ Official docs should state: *on gfx1151, cluster inference via Kaiwo/vLLM is the
 
 ---
 
-## 3. Installation comparison
+## 4. Installation comparison
 
 ### 3.1 Official on-premises path
 
@@ -93,7 +128,9 @@ Official docs should state: *on gfx1151, cluster inference via Kaiwo/vLLM is the
 
 ### 3.2 Our gfx1151 path
 
-[README.md](../README.md) — scripted pipeline on **Asus Z13 / gfx1151**:
+**Primary:** [BLOOM_GFX1151_INSTALL.md](BLOOM_GFX1151_INSTALL.md) — `sudo ./bloom cli bloom-gfx1151.yaml` on **Asus Z13 / gfx1151** (validated 2026-06-08).
+
+**Alternative:** [README.md](../README.md) — scripted **k3s** pipeline on the same hardware:
 
 | Step | Script | Bloom equivalent (`GPU_GFX1151: true`) |
 |------|--------|----------------------------------------|
@@ -121,7 +158,7 @@ Official docs should state: *on gfx1151, cluster inference via Kaiwo/vLLM is the
 
 ---
 
-## 4. System requirements — critical differences
+## 5. System requirements — critical differences
 
 ### 4.1 Hardware (official vs gfx1151)
 
@@ -168,7 +205,7 @@ Verify after reboot: `rocm-smi --showmeminfo vram` → ~128 GiB, not ~4 GiB.
 
 ---
 
-## 5. Runtime / env vars (gfx1151 only)
+## 6. Runtime / env vars (gfx1151 only)
 
 Official on-prem doc: generic “ROCm will be installed” when `GPU_NODE: true`. **No gfx1151 env vars.**
 
@@ -186,7 +223,7 @@ Our [03-gpu-plugin.sh](../scripts/03-gpu-plugin.sh) and [01-rocm-host.md](call-f
 
 ---
 
-## 6. Bug fixes and upstream work (our analysis)
+## 7. Bug fixes and upstream work (our analysis)
 
 Documented in [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md). Summary for EAI doc team:
 
@@ -203,7 +240,7 @@ Documented in [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md). Summ
 
 ---
 
-## 7. Component-by-component checklist for doc updates
+## 8. Component-by-component checklist for doc updates
 
 Use this when adding a **Strix Halo (gfx1151) on-premises guide**:
 
@@ -244,7 +281,7 @@ Use this when adding a **Strix Halo (gfx1151) on-premises guide**:
 
 ---
 
-## 8. Suggested new doc section (copy-paste starter)
+## 9. Suggested new doc section (copy-paste starter)
 
 **Title:** *On-premises installation on Strix Halo (gfx1151)*  
 **Placement:** Sub-page under [On-premises installation](https://enterprise-ai.docs.amd.com/en/latest/platform-infrastructure/on-premises-installation.html) or cross-link from [ROCm Radeon/Ryzen](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/).
@@ -277,7 +314,7 @@ See [BLOOM_GFX1151_INSTALL.md](BLOOM_GFX1151_INSTALL.md). k3s scripts remain a l
 
 ---
 
-## 9. URL validation log (2026-06-06)
+## 10. URL validation log (2026-06-06)
 
 | URL | Result |
 |-----|--------|
@@ -293,7 +330,7 @@ See [BLOOM_GFX1151_INSTALL.md](BLOOM_GFX1151_INSTALL.md). k3s scripts remain a l
 
 ---
 
-## 10. Local references (amdeai repo)
+## 11. Local references (amdeai repo)
 
 | Document | Purpose |
 |----------|---------|

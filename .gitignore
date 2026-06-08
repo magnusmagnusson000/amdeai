@@ -3,7 +3,22 @@ __pycache__/
 *.pyc
 .env
 .cursor/
+.vscode/
 backups/
+
+# Local Python environments (e2e venv lives in-repo for Playwright isolation)
+.venv*/
+.venv-e2e/
+
+# Study/vendor trees belong under ~/eai-build — not in amdeai root
+clusterforge/
+
+# Bloom runtime config/logs (join tokens, machine-local)
+additional_node_command.txt
+bloom.yaml
+
+# Editor scratch
+docs/Untitled
 
 # Graphify — commit graph.json, GRAPH_REPORT.md, graph.html, manifest.json (team map).
 # Skip incremental rebuild artifacts (regenerated locally; can be large).
@@ -12,3 +27,13 @@ graphify-out/cost.json
 graphify-out/memory/
 graphify-out/converted/
 graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/.graphify_labels.json
+graphify-out/20*/
+
+# Cluster Bloom runtime cache (created when bloom cli runs from this repo)
+.bloom/
+bloom.log
+bloom-*.log
+bloom-playbook/
+bloom

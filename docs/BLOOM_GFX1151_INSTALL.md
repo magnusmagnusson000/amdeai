@@ -90,7 +90,7 @@ echo "$(whoami) ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/cluster-bloom
 #      wget -O bloom https://github.com/silogen/cluster-bloom/releases/latest/download/bloom
 chmod +x bloom
 
-# 2. Set domain to node IP + nip.io
+# 2. Set domain to node IP + nip.io (required before install — see DOMAIN section below)
 NODE_IP=$(hostname -I | awk '{print $1}')
 sed -i "s|^DOMAIN:.*|DOMAIN: \"${NODE_IP}.nip.io\"|" bloom-gfx1151.yaml
 
@@ -110,6 +110,98 @@ sudo ./bloom cli bloom-gfx1151.yaml
 
 ---
 
+## Install sequence (validated on Z13, 2026-06-08)
+
+A full Enterprise AI stack on gfx1151 requires **three Bloom phases** plus optional GitOps workarounds. Use this order on a clean host.
+
+### Phase 1 — Full Bloom install
+
+```bash
+sudo ./bloom cli bloom-gfx1151.yaml
+```
+
+This runs node prep (ROCm 7.2.3, GRUB, env vars), RKE2, `deploy_k8s_apps` (MetalLB manifest, local-path, domain/TLS, GPU plugin), and ClusterForge bootstrap.
+
+**Required config in [bloom-gfx1151.yaml](../bloom-gfx1151.yaml):**
+
+| Field | Why |
+|-------|-----|
+| `DOMAIN: "<IP>.nip.io"` | CoreDNS rewrite in `envoy-gateway-config`; empty domain breaks **all** cluster DNS |
+| `INSTALL_ARGOCD: false` | ClusterForge Helm ArgoCD conflicts with Bloom `core-install` (immutable Deployment selectors) |
+| `GPU_GFX1151: true` | Enables ROCm Radeon path, GRUB unified memory, gfx1151 device plugin |
+| `NO_DISKS_FOR_CLUSTER: true` | Single NVMe laptop; uses local-path `direct` StorageClass |
+
+### Phase 2 — MetalLB + domain/TLS (if skipped or re-applying)
+
+If you previously ran only `--tags deploy_clusterforge`, or HTTPS on `:443` is not programmed, run:
+
+```bash
+sudo ./bloom cli bloom-gfx1151.yaml --tags metallb,domain
+```
+
+**Expected recap:** `3 ok, 4 changed, 0 failed` (not `0 ok`). This creates:
+
+- `/var/lib/rancher/rke2/server/manifests/metallb-address.yaml` — IPAddressPool + L2Advertisement for node IP
+- `cluster-domain` ConfigMap in `default`
+- `cluster-tls` TLS secret in `envoy-gateway-system` from RKE2 API server certs
+
+**Tag bug (fixed in `feat/gfx1151-support`):** Older Bloom builds ran the `include_tasks` wrappers but skipped inner tasks when using `--tags metallb,domain` because child tasks lacked Ansible tags. Rebuild bloom from cluster-bloom after pulling the tag fix:
+
+```bash
+cd ~/eai-build/cluster-bloom && go build -o /home/magnus/projects/amdeai/bloom .
+```
+
+Alternative: `sudo ./bloom cli bloom-gfx1151.yaml --tags deploy_k8s_apps` runs all k8s app tasks including metallb and domain.
+
+### Phase 3 — Wait for GitOps + verify gateway
+
+```bash
+kubectl wait --for=condition=ready pod --all -n envoy-gateway-system --timeout=600s
+kubectl get gateway -n envoy-gateway-system    # ADDRESS = node IP, PROGRAMMED = True
+kubectl get applications.argoproj.io -n argocd
+```
+
+HTTPS smoke test (307 redirect to Keycloak is OK):
+
+```bash
+curl -sk -o /dev/null -w "%{http_code}\n" https://aiwbui.${NODE_IP}.nip.io/
+curl -sk -o /dev/null -w "%{http_code}\n" https://airmui.${NODE_IP}.nip.io/
+```
+
+### Phase 4 — GitOps workarounds (if apps OutOfSync / Degraded)
+
+These were required on Z13 when ClusterForge `main` shipped chart defaults incompatible with envoy-gateway:
+
+| Issue | Symptom | Fix |
+|-------|---------|-----|
+| AIWB chart `2.0.0-rc.1` missing on Docker Hub | `aiwb` sync error, image pull failures | Patch ArgoCD Application `targetRevision` to `1.1.9` |
+| AIWB HTTPRoute parent `kgateway-system` | Routes not attached to Gateway | Patch `parentRefs.namespace` to `envoy-gateway-system` on `aiwb-ui-route` and `aiwb-api-route` |
+| CoreDNS wildcard `.*\.` from empty domain | ExternalSecrets fail, repo-server DNS errors | Set `DOMAIN` before install; remove bad rewrite from `rke2-coredns` ConfigMap |
+| `airm` / `aiwb` Applications missing | Parent `cluster-forge` sync failed during DNS outage | Re-apply cluster-forge helm template or hard-refresh parent Application |
+
+Example AIWB chart patch:
+
+```bash
+kubectl patch application aiwb -n argocd --type merge \
+  -p '{"spec":{"source":{"targetRevision":"1.1.9"}}}'
+```
+
+Example HTTPRoute parent patch:
+
+```bash
+kubectl patch httproute aiwb-ui-route -n aiwb --type=json \
+  -p '[{"op":"replace","path":"/spec/parentRefs/0/namespace","value":"envoy-gateway-system"}]'
+```
+
+After patching, you may suspend auto-sync on affected apps to prevent self-heal from reverting:
+
+```bash
+kubectl patch application aiwb -n argocd --type merge \
+  -p '{"spec":{"syncPolicy":null}}'
+```
+
+---
+
 ## What Bloom installs (gfx1151 path)
 
 With `GPU_GFX1151: true`, Bloom performs:
@@ -118,9 +210,11 @@ With `GPU_GFX1151: true`, Bloom performs:
 2. **GRUB** unified-memory params: `amdgpu.gttsize=131072 ttm.pages_limit=33554432 amd_iommu=off`
 3. **Environment** in `/etc/environment`: `HSA_OVERRIDE_GFX_VERSION=11.5.1`, `HSA_ENABLE_SDMA=0`, `MIOPEN_FIND_ENFORCE=1`, etc.
 4. **RKE2** single-node cluster
-5. **Platform**: MetalLB, cert-manager, ArgoCD (small cluster)
-6. **Cluster Forge** GitOps bootstrap → Kaiwo, AIM Engine, AIRM, AI Workbench
+5. **Platform**: MetalLB, cert-manager, local-path storage (`direct` StorageClass), envoy-gateway
+6. **Cluster Forge** bootstrap → ArgoCD (Helm), OpenBao, parent Application → Kaiwo, AIM Engine, AIRM, AI Workbench via GitOps
 7. **GPU device plugin** DaemonSet with gfx1151 env vars + Kaiwo node labels
+
+With `INSTALL_ARGOCD: false`, Bloom skips its lightweight ArgoCD `core-install` manifest. ClusterForge’s `bootstrap_argocd.yaml` installs the full Helm chart instead (required — the two ArgoCD installs fight over immutable Deployment selectors).
 
 Equivalent to our k3s scripts `01`–`06b` (except local llama — see below).
 
@@ -152,7 +246,9 @@ bash scripts/validate-hip-gfx1151.sh
 |---------|-----|
 | AI Workbench | `https://aiwbui.<IP>.nip.io` |
 | AIRM | `https://airmui.<IP>.nip.io` |
-| Keycloak | `https://keycloak.<IP>.nip.io` |
+| Keycloak | `https://kc.<IP>.nip.io` |
+| ArgoCD | `https://argocd.<IP>.nip.io` |
+| OpenBao | `https://openbao.<IP>.nip.io` |
 
 Default admin: `silogen-admin` (password set at bootstrap).
 
@@ -182,6 +278,7 @@ See [bloom-gfx1151.yaml](../bloom-gfx1151.yaml) at repo root. Key fields:
 | `NO_DISKS_FOR_CLUSTER` | `true` | Skip Longhorn disk prep (single NVMe laptop) |
 | `SKIP_RANCHER_PARTITION_CHECK` | `true` | Skip 500 GB `/var/lib/rancher` check |
 | `CLUSTER_SIZE` | `small` | Single-node Z13 demo |
+| `INSTALL_ARGOCD` | `false` | Let ClusterForge bootstrap ArgoCD (Helm). Bloom `core-install` conflicts on small clusters |
 | `PRELOAD_IMAGES` | `""` | Skip large image preload on laptop |
 | `DOCKERHUB_USER` / `DOCKERHUB_TOKEN` | optional | Authenticated pulls during Cluster Forge |
 
@@ -216,24 +313,88 @@ The scripted k3s path in [README.md](../README.md) remains available for lab/deb
 | HIP page faults / `llama-cli` hangs at `Loading model...` | `amdgpu-dkms` overriding in-kernel driver | `sudo apt remove -y amdgpu-dkms amdgpu-dkms-firmware && sudo apt install -y linux-oem-24.04d && sudo reboot` — see [G9](gfx1151-upstream-pr-guide.md#fix-g9--remove-amdgpu-dkms-use-in-tree-amdgpu-from-oem-kernel) |
 | `amdgpu: [gfxhub] page fault … PERMISSION_FAULTS: 0x3` in dmesg | Same — DKMS amdgpu driver | Same fix as above |
 | Port 6443 already in use | k3s or old RKE2 still present | Remove k3s or `sudo ./bloom cleanup bloom-gfx1151.yaml` then retry |
+| ArgoCD `spec.selector field is immutable` | Bloom `core-install` ArgoCD + ClusterForge Helm ArgoCD | Set `INSTALL_ARGOCD: false` in `bloom-gfx1151.yaml`; `kubectl delete ns argocd` if stuck, re-run `--tags deploy_clusterforge` |
+| OpenBao pod Pending, `storageclass "direct" not found` | `NO_DISKS_FOR_CLUSTER` skips local-path in upstream Bloom | Ensure local-path provisioner is deployed (gfx1151 Bloom PR enables this); or copy manifests from `cluster-bloom/.../manifests/local-path/` into `/var/lib/rancher/rke2/server/manifests/` |
+| `--tags metallb,domain` shows `0 ok, 0 changed` | Bloom build before tag fix — inner Ansible tasks skipped | Rebuild bloom from `feat/gfx1151-support` (tags on `metallb.yaml` / `domain.yaml` tasks); re-run; expect `3 ok, 4 changed` |
+| ExternalSecrets `SecretSyncedError`, pods `CreateContainerConfigError` | CoreDNS rewrite rule with **empty** `domain` — all `*.svc.cluster.local` names resolve to envoy-gateway | Ensure `DOMAIN` is set **before** install. If broken: delete `helmchartconfig/rke2-coredns` in `kube-system`, patch CoreDNS ConfigMap to remove the `rewrite` line, restart `rke2-coredns` and `external-secrets` |
+| `airm` / `aiwb` ArgoCD Applications missing | `cluster-forge` parent sync failed while DNS was broken | After DNS fix: `helm template cluster-forge ... \| kubectl apply -f -` (see ClusterForge clone under `.bloom/clusterforge/`) or hard-refresh `cluster-forge` Application |
+| Keycloak `OOMKilled` on Z13 | Default memory limits too low for laptop | Increase Keycloak deployment memory request/limit (e.g. 4Gi) or close other workloads; wait for sync to settle |
+| HTTPS URLs `connection refused` from browser | envoy-gateway Gateway not programmed / MetalLB / GitOps still syncing | Wait 30–60 min after bootstrap; `kubectl get gateway -n envoy-gateway-system`; ensure MetalLB Application is Synced |
 
 ---
 
-## Validation log (development)
+## Validation log (Z13, 2026-06-08)
 
-Automated checks on Z13 (`feat/gfx1151-support` branch):
+Full Enterprise AI stack validated after phased Bloom install, GitOps workarounds, and `metallb,domain` re-run.
+
+### Changes applied to reach working state
+
+| # | Change | Reason |
+|---|--------|--------|
+| 1 | `INSTALL_ARGOCD: false` in `bloom-gfx1151.yaml` | Bloom `core-install` ArgoCD vs ClusterForge Helm — immutable selector conflict |
+| 2 | `DOMAIN: "192.168.32.13.nip.io"` set before install | `envoy-gateway-config` CoreDNS rewrite; empty domain broke cluster DNS |
+| 3 | local-path provisioner for gfx1151 + `NO_DISKS_FOR_CLUSTER` | OpenBao PVC needs `direct` StorageClass (cluster-bloom PR) |
+| 4 | `sudo ./bloom cli ... --tags metallb,domain` | MetalLB pool + `cluster-tls` when gateway not on external IP |
+| 5 | Ansible tags on `metallb.yaml` / `domain.yaml` tasks | `--tags metallb,domain` previously ran 0 inner tasks |
+| 6 | AIWB ArgoCD `targetRevision` → `1.1.9` | `2.0.0-rc.1` chart not published on Docker Hub |
+| 7 | AIWB HTTPRoute `parentRefs.namespace` → `envoy-gateway-system` | Chart defaulted to deprecated `kgateway-system` |
+| 8 | CoreDNS: domain-scoped rewrite only | Removed broken `.*\.` rule from empty-domain sync |
+| 9 | E2E tests: Keycloak OIDC flow (`Sign in with Keycloak` → `devuser@domain`) | NextAuth redirect differs from direct form login |
+
+### Final check results
 
 | Check | Result |
 |-------|--------|
-| `go test ./pkg/config/...` (cluster-bloom) | Pass (38 schema fields incl. `GPU_GFX1151`) |
-| `go build` bloom binary from source | Pass |
-| `./bloom cli bloom-gfx1151.yaml --export` | Pass — playbook includes gfx1151 tasks |
-| `./bloom help` lists `GPU_GFX1151` | Pass |
-| `rocminfo \| grep gfx1151` on Z13 | Pass |
-| Full `sudo ./bloom cli` end-to-end | **Manual** — requires clean host or `bloom cleanup`; conflicts with existing k3s lab cluster |
-| `hipMemcpy` / HIP inference via `validate-hip-gfx1151.sh` | **PASS** (2026-06-08, kernel `6.17.0-1025-oem`, `amdgpu-dkms` removed) |
+| Bloom ClusterForge bootstrap | **PASS** — 27 ok, 0 failed |
+| Bloom `--tags metallb,domain` (rebuilt binary) | **PASS** — 3 ok, 4 changed, 0 failed |
+| RKE2 node Ready | **PASS** |
+| `kubectl get node` GPU capacity | **PASS** — `amd.com/gpu: 1` |
+| Gateway programmed + MetalLB | **PASS** — `192.168.32.13:443`, `PROGRAMMED=True` |
+| `cluster-tls` + `cluster-domain` | **PASS** — Bloom domain task |
+| Keycloak | **PASS** — Synced, Healthy |
+| AIRM (`airm` Application) | **PASS** — Synced, Healthy |
+| AIWB (`aiwb` Application) | **PASS** — Healthy (OutOfSync after chart/route patches; UI works) |
+| HTTPS smoke (`curl`) | **PASS** — aiwbui/airmui/kc return 307 → Keycloak |
+| Playwright E2E | **PASS** — 3/3 (`test_aiwb_ui` ×2, `test_airm_ui` ×1) |
+| Integration tests | **PARTIAL** — 4/7 pass (GPU scheduling, Kaiwo/AIM operators); Kueue flavor/queue + AIMModel CR need extra ClusterForge config |
+| HIP validation | **PASS** — `scripts/validate-hip-gfx1151.sh` |
 
-After full Bloom install on a clean Z13, run the [Post-install verification](#post-install-verification) section and `bash scripts/validate-hip-gfx1151.sh`.
+### Test commands
+
+```bash
+# Cluster health
+kubectl get applications.argoproj.io -n argocd
+kubectl get gateway -n envoy-gateway-system
+kubectl get pods -A | grep -vE 'Running|Completed'
+
+# Integration + HIP
+pytest tests/integration/ -v
+bash scripts/validate-hip-gfx1151.sh
+
+# UI E2E (Keycloak SSO)
+python3 -m venv .venv-e2e && .venv-e2e/bin/pip install playwright pytest pytest-playwright
+.venv-e2e/bin/playwright install chromium
+E2E_AIWB=1 E2E_AIRM=1 .venv-e2e/bin/pytest tests/e2e/test_aiwb_ui.py tests/e2e/test_airm_ui.py -v
+```
+
+### Service endpoints (Z13)
+
+| Service | URL | Login |
+|---------|-----|-------|
+| AI Workbench | `https://aiwbui.192.168.32.13.nip.io` | `devuser@192.168.32.13.nip.io` |
+| AIRM | `https://airmui.192.168.32.13.nip.io` | same password as AIWB |
+| Keycloak admin | `https://kc.192.168.32.13.nip.io` | `silogen-admin` |
+| ArgoCD | `https://argocd.192.168.32.13.nip.io` | `admin` |
+
+Passwords: see Bloom post-install banner or `kubectl -n keycloak get secret airm-realm-credentials`.
+
+Cluster-bloom build checks (`feat/gfx1151-support`):
+
+| Check | Result |
+|-------|--------|
+| `go test ./pkg/config/...` | Pass (38 schema fields incl. `GPU_GFX1151`) |
+| `go build` bloom binary | Pass |
+| `metallb` / `domain` tag-filtered run | Pass (after tag fix on child tasks) |
 
 ---
 
