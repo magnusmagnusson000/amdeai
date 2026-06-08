@@ -11,13 +11,14 @@ readonly EAI_GRUB_GUIDE_TTM=33554432
 
 # Merge ROCm-related kernel params into GRUB_CMDLINE_LINUX_DEFAULT without wiping
 # unrelated tokens (e.g. amdgpu.dcdebugmask). Keeps existing gttsize/pages_limit
-# when set so a conservative RAM margin is preserved.
+# when set so a conservative RAM margin is preserved (unless EAI_GRUB_FORCE_GUIDE=1).
+# Always adds amdgpu.cwsr_enable=0 — required workaround for MES 0x83 hang on gfx1151.
 merge_grub_cmdline() {
   local current="$1"
   local apply_guide="${2:-1}"
   local -a tokens=()
   local -a out=()
-  local tok key gtt="" ttm="" iommu="" has_iommu=0
+  local tok key gtt="" ttm="" iommu="" has_iommu=0 has_cwsr=0
 
   if [[ -n "$current" ]]; then
     read -ra tokens <<< "$current"
@@ -29,32 +30,42 @@ merge_grub_cmdline() {
         amdgpu.gttsize=*) gtt="${tok#*=}" ;;
         ttm.pages_limit=*) ttm="${tok#*=}" ;;
         amd_iommu=*) iommu="${tok#*=}" ;;
+        amdgpu.cwsr_enable=*) has_cwsr=1 ;;
       esac
     done
-    [[ -z "$gtt" ]] && gtt="$EAI_GRUB_GUIDE_GTT"
-    [[ -z "$ttm" ]] && ttm="$EAI_GRUB_GUIDE_TTM"
+    if [[ "${EAI_GRUB_FORCE_GUIDE:-0}" == "1" ]]; then
+      gtt="$EAI_GRUB_GUIDE_GTT"
+      ttm="$EAI_GRUB_GUIDE_TTM"
+    else
+      [[ -z "$gtt" ]] && gtt="$EAI_GRUB_GUIDE_GTT"
+      [[ -z "$ttm" ]] && ttm="$EAI_GRUB_GUIDE_TTM"
+    fi
     iommu="off"
 
     for tok in "${tokens[@]}"; do
       if [[ "$tok" == *=* ]]; then
         key="${tok%%=*}"
         case "$key" in
-          amd_iommu|amdgpu.gttsize|ttm.pages_limit) continue ;;
+          amd_iommu|amdgpu.gttsize|ttm.pages_limit|amdgpu.cwsr_enable) continue ;;
         esac
       fi
       out+=("$tok")
     done
-    out+=(amd_iommu="$iommu" "amdgpu.gttsize=$gtt" "ttm.pages_limit=$ttm")
+    out+=(amd_iommu="$iommu" "amdgpu.cwsr_enable=0" "amdgpu.gttsize=$gtt" "ttm.pages_limit=$ttm")
     printf '%s' "${out[*]}"
     return 0
   fi
 
   for tok in "${tokens[@]}"; do
     [[ "$tok" == amd_iommu=* ]] && has_iommu=1
+    [[ "$tok" == amdgpu.cwsr_enable=* ]] && has_cwsr=1
     out+=("$tok")
   done
   if [[ $has_iommu -eq 0 ]]; then
     out+=(amd_iommu=off)
+  fi
+  if [[ $has_cwsr -eq 0 ]]; then
+    out+=(amdgpu.cwsr_enable=0)
   fi
   printf '%s' "${out[*]}"
 }
@@ -67,6 +78,24 @@ if awk "BEGIN {exit !($KVER >= 6.14)}" 2>/dev/null; then
   echo "Kernel $KVER — HWE optional."
 else
   sudo apt install -y linux-oem-24.04d || true
+  NEEDS_REBOOT=1
+fi
+
+# gfx1151: amdgpu-dkms breaks HIP memory mapping (PERMISSION_FAULT page faults).
+# Use in-kernel amdgpu from linux-oem or stock HWE — never DKMS on Strix Halo.
+# Ref: https://github.com/ROCm/ROCm/issues/6146 https://github.com/ROCm/ROCm/issues/6186
+if dpkg -l amdgpu-dkms 2>/dev/null | grep -q '^ii'; then
+  echo "WARN: amdgpu-dkms installed — removing (breaks gfx1151 HIP/llama.cpp)."
+  sudo apt remove -y amdgpu-dkms amdgpu-dkms-firmware || true
+  NEEDS_REBOOT=1
+fi
+if ! dpkg -l linux-oem-24.04d 2>/dev/null | grep -q '^ii'; then
+  echo "Installing linux-oem-24.04d (recommended gfx1151 kernel)..."
+  sudo apt install -y linux-oem-24.04d || true
+  NEEDS_REBOOT=1
+fi
+if [[ -f /sys/module/amdgpu/srcversion ]] && modinfo amdgpu 2>/dev/null | grep -q '/updates/dkms/'; then
+  echo "WARN: DKMS amdgpu still loaded — reboot required after dkms removal."
   NEEDS_REBOOT=1
 fi
 

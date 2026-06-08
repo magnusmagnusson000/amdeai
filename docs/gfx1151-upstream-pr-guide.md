@@ -20,6 +20,7 @@ This document records **every code change** made to enable ROCm HIP inference on
 | G6 | Firmware MES 0x83 GPU hang | linux-firmware | Stay on MES 0x80 or `amdgpu.cwsr_enable=0` | [ROCm#5724](https://github.com/ROCm/ROCm/issues/5724) |
 | G7 | KFD ABI <1.20 instability | libhsakmt | Kernel ≥6.17, KFD 1.20+ | ROCm/rocm-systems |
 | G8 | AOTriton experimental only | PyTorch/TheRock | `TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1` | TheRock nightly wheels |
+| **G9** | **`amdgpu-dkms` overrides in-kernel driver → HIP page faults** | **Ubuntu / DKMS** | **Remove `amdgpu-dkms`; boot `linux-oem-24.04d`** | **[ROCm#6146](https://github.com/ROCm/ROCm/issues/6146); [ROCm#5890](https://github.com/ROCm/ROCm/issues/5890)** |
 
 ---
 
@@ -84,6 +85,61 @@ cmake --build build-hip -j$(nproc)
   -ngl 99 -p "Hello" -n 32 --no-display-prompt
 # Expect: coherent text, not repeated <unused24>
 ```
+
+---
+
+## Fix G9 — Remove `amdgpu-dkms`; use in-tree `amdgpu` from OEM kernel
+
+**Symptom:** Every HIP call (`hipMemcpy`, llama.cpp model load) hangs and emits `amdgpu: [gfxhub] page fault … PERMISSION_FAULTS: 0x3` in `dmesg`. Manifests as `llama-cli` spinning at `Loading model...` at 99% CPU, ~4% GPU. No env-var workaround resolves it.
+
+**Root cause:** Ubuntu installs `amdgpu-dkms` (AMD's out-of-tree DKMS driver, version `6.16.x`) alongside the HWE generic kernel. On gfx1151 Strix Halo, the DKMS driver's UMA/HMA page-table mapping is incompatible with the SoC's integrated memory controller, causing all HIP compute operations to fault on first GPU access. The in-kernel `amdgpu` driver shipped with `linux-oem-24.04d` does not have this problem and also loads MES firmware `0x80` instead of the broken `0x83`.
+
+**Verification:**
+
+```bash
+# Check which amdgpu is loaded:
+modinfo amdgpu | grep filename
+# BAD:  /lib/modules/6.17.0-35-generic/updates/dkms/amdgpu.ko.zst  ← DKMS override
+# GOOD: /lib/modules/6.17.0-1025-oem/kernel/drivers/gpu/drm/amd/amdgpu/amdgpu.ko.zst
+
+# Check MES firmware:
+sudo cat /sys/kernel/debug/dri/1/amdgpu_firmware_info | grep MES
+# GOOD: MES feature version: 1, firmware version: 0x00000080
+# BAD:  MES feature version: 1, firmware version: 0x00000083
+
+# Reproduce the fault with DKMS loaded:
+hipcc /tmp/hipmemcpy.cpp -o /tmp/hipmemcpy && /tmp/hipmemcpy
+# BAD:  hipMemcpy H2D: no error  (but dmesg shows PERMISSION_FAULTS)
+# GOOD: hipMemcpy H2D: no error  (and dmesg is clean)
+```
+
+**Fix:**
+
+```bash
+# Remove the DKMS override:
+sudo apt remove -y amdgpu-dkms amdgpu-dkms-firmware
+
+# Install and boot the OEM kernel (ships in-tree amdgpu + correct MES 0x80):
+sudo apt install -y linux-oem-24.04d
+sudo reboot
+# At GRUB, boot "Ubuntu, with Linux 6.17.0-1025-oem" (usually first entry after install)
+```
+
+**Automated check** — `scripts/01-host-rocm.sh` now detects and removes `amdgpu-dkms` automatically if present, and installs `linux-oem-24.04d`. `scripts/validate-hip-gfx1151.sh` blocks execution if the DKMS module is still loaded.
+
+**References:**
+- [ROCm#6146](https://github.com/ROCm/ROCm/issues/6146) — `hipMemcpy` page fault on gfx1151 with kernel 6.17 generic; resolved by switching to `6.14.0-1018-oem` + removing `amdgpu-dkms`
+- [ROCm#5890](https://github.com/ROCm/ROCm/issues/5890) — `amdgpu-dkms` page fault under ROCm 7.2 on gfx1151; resolved by `sudo amdgpu-uninstall`
+- [ROCm#6186](https://github.com/ROCm/ROCm/issues/6186) — persistent PERMISSION_FAULTS on Strix Halo; env var `HSA_ENABLE_SDMA=0` is a secondary mitigation
+- [TheRock#2991](https://github.com/ROCm/TheRock/issues/2991) — upstream tracking issue for gfx1151 UMA driver stability
+- [AMD Radeon/Ryzen install guide](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installryz/native_linux/install-ryzen.html) — official AMD guidance: use OEM kernel and remove `amdgpu-dkms` on Ryzen AI
+
+**Status (2026-06-08):** RESOLVED on this system. `hipMemcpy` clean, no page faults. Full HIP inference validated:
+
+| Model | Prompt t/s | Gen t/s | MoE fault |
+|-------|-----------|---------|-----------|
+| Phi-4-mini-instruct Q4_K_M (dense SLM) | 297 | 68 | n/a |
+| Gemma 4 26B-A4B Q4_K_M (MoE) | 114 | 36 | None — no `<unused>` tokens |
 
 ---
 
@@ -165,34 +221,60 @@ No source patches required. Ensure GPU pod specs inherit the env vars above (Dae
 | `scripts/lib/force-build.sh` | `ensure_git_repo()` preserves local feature branches |
 | `scripts/03-gpu-plugin.sh` | gfx1151 ROCm env vars in DaemonSet |
 | `scripts/07-llama-cpp.sh` | HIP build + branch preservation + systemd env |
+| `scripts/01-host-rocm.sh` | Auto-remove `amdgpu-dkms`; install `linux-oem-24.04d`; add `amdgpu.cwsr_enable=0` to GRUB |
+| `scripts/validate-hip-gfx1151.sh` | SLM → Phi-4-mini; DKMS guard; `--single-turn` exit fix |
+| `scripts/diag-hip-gfx1151.sh` | Deep HIP diagnostic runner (kernel logs, per-case timeouts) |
 | `docs/call-flows/*.md` | ROCm as standard path; Vulkan as Gemma workaround |
 | `docs/CALL_FLOW_OVERVIEW.md` | Dual-path overview |
 | `docs/OVERVIEW.md` | Standard vs gfx1151-specific paths |
-| `README.md` | Full install guide including k3s steps |
+| `docs/gfx1151-upstream-pr-guide.md` | Added G9 (amdgpu-dkms root cause + fix) |
+| `README.md` | Full install guide; updated validation results; G9 in gfx1151 notes |
 
 ---
 
 ## Revision history
 
-| Date | Author | Notes |
-|------|--------|-------|
-| 2026-06-06 | amdeai gfx1151 enable | Initial G1–G3 patches + documentation |
-| 2026-06-06 | merge to llama.cpp master | Merged `gfx1151-rdna35-tuning` into upstream master @ `0ab06d382`; HIP build OK |
+| Date | Notes |
+|------|-------|
+| 2026-06-06 | G1–G3 patches applied + documentation; `gfx1151-rdna35-tuning` merged to llama.cpp master @ `0ab06d382`; HIP build OK |
+| 2026-06-08 | **Root cause identified and fixed (G9):** `amdgpu-dkms` was overriding in-kernel driver, causing HIP page faults on every compute op. Removed DKMS; installed `linux-oem-24.04d` (MES 0x80); full HIP inference now validated |
 
-## Runtime validation (2026-06-06)
+## Runtime validation
+
+### 2026-06-06 (initial — HIP blocked)
 
 | Step | Result |
 |------|--------|
 | `git pull origin master` + merge gfx1151 branch | OK — conflict in `mmvq.cu` resolved (kept RDNA3_5 + TURING tables) |
 | HIP cmake/build `AMDGPU_TARGETS=gfx1151` | OK — `build-hip/bin/llama-cli` @ `0ab06d382` |
 | `llama-cli --list-devices` | OK — gfx1151 detected |
-| SLM / Gemma HIP inference | **Blocked** — Ollama held ~78% GPU; `sudo` required to stop. First HIP load also spins at "Loading model..." (long JIT or GPU contention) |
+| SLM / Gemma HIP inference | **FAIL** — `amdgpu: [gfxhub] page fault PERMISSION_FAULTS: 0x3` on every run; root cause: `amdgpu-dkms` overriding in-kernel driver |
 
-**Run validation after stopping Ollama:**
+### 2026-06-08 (after G9 fix — PASS)
+
+**System state:**
+- Kernel: `6.17.0-1025-oem`
+- `amdgpu`: in-tree (`/lib/modules/6.17.0-1025-oem/kernel/…/amdgpu.ko.zst`)
+- MES firmware: `0x00000080` (safe)
+- GRUB: `amdgpu.gttsize=131072 ttm.pages_limit=33554432 amd_iommu=off amdgpu.cwsr_enable=0`
+- GTT pool: `137438953472` bytes (~128 GiB)
+
+| Step | Result |
+|------|--------|
+| `hipMemcpy` smoke test | **PASS** — no error, no kernel faults |
+| `llama-cli --list-devices` | OK — `ROCm0: AMD Radeon Graphics (131072 MiB, ~119 GiB free)` |
+| Phi-4-mini SLM ngl=99 | **PASS** — 297 t/s prompt, 68 t/s gen |
+| Gemma 4 26B-A4B MoE ngl=99 | **PASS** — 114 t/s prompt, 36 t/s gen, no `<unused>` tokens |
+| `scripts/validate-hip-gfx1151.sh` exit code | **0** |
+
+**Reproduce validation:**
 
 ```bash
 sudo systemctl stop ollama
 bash scripts/validate-hip-gfx1151.sh
+# Expected output ends with:
+# PASS: No <unused> token repeat detected in Gemma 4 HIP output
+# === Done ===
 ```
 
-**Before full EAI stack:** apply GRUB guide values (`scripts/01-host-rocm.sh`) and reboot so `rocm-smi` reports ~128 GiB VRAM (currently ~4 GiB without full tuning).
+> **Note on `rocm-smi --showmeminfo vram`:** on Strix Halo the reported VRAM total stays ~4 GiB — this is the carved-out `vis_vram` pool; the full GTT (~128 GiB) is what `llama-cli --list-devices` and `/sys/class/drm/card1/device/mem_info_gtt_total` show. This is expected and not an indicator of misconfiguration.

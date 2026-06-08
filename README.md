@@ -8,7 +8,28 @@ Automation, documentation, and tests for the [AMD Enterprise AI Suite](eai-suite
 
 ---
 
-## Quick start — full system install
+## Quick start — Cluster Bloom (official path)
+
+Single-command install via [Cluster Bloom](https://github.com/silogen/cluster-bloom) + RKE2. Equivalent to scripts `01`–`06b` for gfx1151.
+
+```bash
+cd /home/magnus/projects/amdeai
+wget -O bloom https://github.com/silogen/cluster-bloom/releases/latest/download/bloom
+chmod +x bloom
+NODE_IP=$(hostname -I | awk '{print $1}')
+sed -i "s|^DOMAIN:.*|DOMAIN: \"${NODE_IP}.nip.io\"|" bloom-gfx1151.yaml
+sudo ./bloom cli bloom-gfx1151.yaml
+# Reboot if Bloom reports GRUB/env changes, then re-run bloom
+```
+
+**Guide:** [docs/BLOOM_GFX1151_INSTALL.md](docs/BLOOM_GFX1151_INSTALL.md)  
+**Config:** [bloom-gfx1151.yaml](bloom-gfx1151.yaml) (`GPU_GFX1151: true`)
+
+Optional after Bloom: `bash scripts/07-llama-cpp.sh` for local Workbench chat via host `llama-server`.
+
+---
+
+## Alternative — k3s script pipeline (lab / debug)
 
 Run scripts in order. Most steps need **sudo** (k3s, ROCm, GRUB). Set `HF_TOKEN` before step 06b.
 
@@ -191,20 +212,25 @@ Place Gemma GGUF at `~/models/gemma-4-26b-a4b-it-Q4_K_M.gguf` or set `MODEL_PATH
 
 | Topic | Action |
 |-------|--------|
+| **`amdgpu-dkms` must NOT be installed** | Causes HIP PERMISSION_FAULT page faults on gfx1151; see [G9 in upstream guide](docs/gfx1151-upstream-pr-guide.md#fix-g9--remove-amdgpu-dkms-use-in-tree-amdgpu-from-oem-kernel) |
+| **Use `linux-oem-24.04d` kernel** | Supplies in-tree `amdgpu` with MES 0x80; `scripts/01-host-rocm.sh` installs it automatically |
 | HIP kernel fixes | Branch `gfx1151-rdna35-tuning` in `~/eai-build/llama.cpp` |
 | Upstream PR guide | [docs/gfx1151-upstream-pr-guide.md](docs/gfx1151-upstream-pr-guide.md) |
-| Gemma 4 on HIP | Use Vulkan (`EAI_LLAMA_BACKEND=vulkan`) until #21416 resolved |
-| SLM test models | Qwen3-0.6B, phi-4-mini Q4_K_M |
-| Firmware MES | Avoid 0x83 hang — see upstream guide |
+| Gemma 4 on HIP | **Validated PASS** (2026-06-08) — 114 t/s prompt, 36 t/s gen, no router corruption |
+| SLM test model | Phi-4-mini Q4_K_M (Qwen3.5 architecture hangs at graph-reserve on gfx1151) |
+| Firmware MES | Must be `0x80`; `0x83` causes hangs — `amdgpu.cwsr_enable=0` is a fallback workaround |
 | Sync repos | `bash scripts/sync-eai-build.sh` |
 
-**Host GRUB (your system vs guide):**
+**GRUB parameters (set by `scripts/01-host-rocm.sh`):**
 
-| Parameter | Typical Z13 | Guide |
-|-----------|-------------|-------|
-| `amdgpu.gttsize` | 110000 | 131072 |
-| `ttm.pages_limit` | 12582912 | 33554432 |
-| `amd_iommu` | — | off |
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `amdgpu.gttsize=131072` | 128 GiB MiB | Expose full unified memory pool to GPU |
+| `ttm.pages_limit=33554432` | 128 GiB in pages | TTM budget for GPU BOs |
+| `amd_iommu=off` | off | Prevent IOMMU from blocking UMA DMA |
+| `amdgpu.cwsr_enable=0` | 0 | Workaround for MES 0x83 hang; safe on 0x80 too |
+
+> **`rocm-smi` VRAM note:** on Strix Halo `rocm-smi --showmeminfo vram` always reports ~4 GiB — that is the `vis_vram` carve-out. The GPU-accessible memory is the GTT pool (~128 GiB) shown by `llama-cli --list-devices` and `cat /sys/class/drm/card1/device/mem_info_gtt_total`. This is normal and not an error.
 
 ---
 
@@ -261,9 +287,16 @@ pytest tests/e2e -v
 
 **Call flow:** [docs/call-flows/01-rocm-host.md](docs/call-flows/01-rocm-host.md)
 
+### [silogen/cluster-bloom](https://github.com/silogen/cluster-bloom)
+
+**Role:** Official RKE2 + ROCm + Cluster Forge installer (primary gfx1151 path).
+
+**Config:** [bloom-gfx1151.yaml](bloom-gfx1151.yaml)  
+**Call flow:** [docs/call-flows/08-bloom.md](docs/call-flows/08-bloom.md)
+
 ### k3s
 
-**Role:** Lightweight Kubernetes; registry on :32000.
+**Role:** Lightweight Kubernetes (alternative lab path); registry on :32000.
 
 **Call flow:** [docs/call-flows/02-k3s.md](docs/call-flows/02-k3s.md)
 

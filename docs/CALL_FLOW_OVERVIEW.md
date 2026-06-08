@@ -80,7 +80,7 @@ sequenceDiagram
 | 7 UI | AI Workbench | Chat / job submit | Chat |
 | 6 Control | AIM Engine + AIMModel | Optional routing | Endpoint CR → :8080 |
 | 5 Orchestration | Kaiwo + Kueue | **Hot path** | Not used |
-| 4 Platform | k3s, MetalLB, cert-manager | TLS, Services | Egress to host IP |
+| 4 Platform | RKE2 (Bloom) or k3s (lab), MetalLB, cert-manager | TLS, Services | Egress to host IP |
 | 3 GPU | k8s-device-plugin | **Hot path** | Not used |
 | 1 Inference | vLLM or llama-server | Pod HIP | Host Vulkan/HIP |
 | 0 HW | gfx1151 + ROCm | KFD | DRM (Vulkan) or KFD (HIP) |
@@ -91,7 +91,8 @@ sequenceDiagram
 |-----|-----------|
 | [00-prerequisites.md](call-flows/00-prerequisites.md) | Toolchain |
 | [01-rocm-host.md](call-flows/01-rocm-host.md) | **ROCm substrate (standard path)** |
-| [02-k3s.md](call-flows/02-k3s.md) | Kubernetes runtime |
+| [08-bloom.md](call-flows/08-bloom.md) | **Cluster Bloom installer (primary gfx1151 path)** |
+| [02-k3s.md](call-flows/02-k3s.md) | Kubernetes runtime (k3s lab alternative) |
 | [03-k8s-device-plugin.md](call-flows/03-k8s-device-plugin.md) | GPU scheduling |
 | [04-platform.md](call-flows/04-platform.md) | Platform Helm charts |
 | [05a-cluster-forge.md](call-flows/05a-cluster-forge.md) | GitOps bootstrap |
@@ -101,5 +102,7 @@ sequenceDiagram
 | [07-llama-cpp.md](call-flows/07-llama-cpp.md) | Local inference hot path |
 
 ## Source trees
+
+**Primary install path:** Cluster Bloom (`GPU_GFX1151: true`) — see [BLOOM_GFX1151_INSTALL.md](BLOOM_GFX1151_INSTALL.md) and [08-bloom.md](call-flows/08-bloom.md). The k3s script pipeline (`scripts/00`–`07`) remains a lab/debug alternative documented in [README.md](../README.md).
 
 After build, read code under `~/eai-build/<repo>/`. Sync repos: `bash scripts/sync-eai-build.sh`.
