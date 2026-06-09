@@ -1,0 +1,11 @@
+# Meta-repo + build tooling — no runtime C/C++. Docs/images hang Ollama (HIP pattern).
+docs/**
+graphify-out/**
+tools/autotag/**
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.svg
+**/*.rst
+.claude/**
+.git/**

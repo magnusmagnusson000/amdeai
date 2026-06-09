@@ -1,0 +1,10 @@
+# Controller (pkg/) + python runtimes — skip Sphinx docs and install scaffolding.
+docs/**
+test/**
+install/**
+hack/**
+tools/**
+**/*.png
+**/*.jpg
+**/*.ipynb
+.git/**

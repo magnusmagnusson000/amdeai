@@ -1,0 +1,17 @@
+# ~41k files → ~1.7k. tools/ui/node_modules alone is 35k files.
+tools/ui/**
+build-hip/**
+build-*/
+**/node_modules/**
+docs/**
+examples/**
+tests/**
+test/**
+models/**
+media/**
+**/*.png
+**/*.jpg
+**/*.svg
+**/*.gif
+**/*.webp
+.git/**

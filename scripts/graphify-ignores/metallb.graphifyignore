@@ -1,0 +1,10 @@
+# Controller in internal/ — website is 50% of repo (Hugo assets).
+website/**
+e2etest/**
+design/**
+troubleshooting/**
+**/*.png
+**/*.svg
+**/*.woff
+**/*.woff2
+.git/**

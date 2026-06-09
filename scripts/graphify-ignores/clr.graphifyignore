@@ -1,0 +1,7 @@
+# HIP/ROCclr runtime — skip OpenCL conformance tests and Khronos headers.
+opencl/tests/**
+opencl/khronos/**
+**/packaging/**
+**/test/**
+**/*.png
+.git/**

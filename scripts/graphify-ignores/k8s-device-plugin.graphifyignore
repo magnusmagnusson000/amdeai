@@ -1,0 +1,10 @@
+# ~15k files → ~20 Go sources. Topology fixtures + vendored deps are not study targets.
+vendor/**
+testdata/**
+graphify-out/**
+docs/**
+example/**
+**/*.png
+**/*.jpg
+**/*.svg
+.git/**

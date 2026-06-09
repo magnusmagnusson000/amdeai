@@ -1,0 +1,9 @@
+# ray-operator/ is primary — skip UI dashboard, benchmarks, and nested tests.
+dashboard/**
+benchmark/**
+**/test/**
+docs/**
+**/*.png
+**/*.svg
+.git/**
+.github/**

@@ -1,0 +1,10 @@
+# Operator code in pkg/, internal/, cmd/ — skip e2e tests and vendored deps.
+test/**
+dependencies/**
+third-party-licenses/**
+docs/**
+hack/**
+**/*.png
+.git/**
+.github/**
+.devcontainer/**

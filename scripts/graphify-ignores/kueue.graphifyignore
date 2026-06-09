@@ -1,0 +1,9 @@
+# ~11k files → ~1.5k. Vendor is 78% of the tree.
+vendor/**
+site/**
+keps/**
+test/**
+CHANGELOG/**
+**/*.png
+**/*.svg
+.git/**

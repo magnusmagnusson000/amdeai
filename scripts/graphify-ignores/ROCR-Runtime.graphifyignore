@@ -1,0 +1,9 @@
+# HSA runtime + libhsakmt only; skip conformance suite and samples.
+rocrtst/**
+samples/**
+DEBIAN/**
+RPM/**
+**/test/**
+**/*.png
+**/*.jpg
+.git/**

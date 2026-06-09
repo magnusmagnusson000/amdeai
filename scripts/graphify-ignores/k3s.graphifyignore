@@ -1,0 +1,6 @@
+# Core in pkg/ and cmd/ — skip integration tests and doc site.
+tests/**
+docs/**
+**/testdata/**
+.git/**
+.github/**

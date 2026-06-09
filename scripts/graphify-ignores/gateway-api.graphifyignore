@@ -1,0 +1,9 @@
+# APIs + pkg/ — conformance YAML and doc site are not implementation code.
+conformance/**
+site/**
+geps/**
+examples/**
+hack/**
+**/*.png
+**/*.svg
+.git/**

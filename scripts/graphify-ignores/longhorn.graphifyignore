@@ -1,0 +1,9 @@
+# Helm/deploy only — no Go. Skip enhancement proposals and benchmark image galleries.
+enhancements/**
+scalability/**
+CHANGELOG/**
+examples/**
+**/*.png
+**/*.jpg
+**/*.pdf
+.git/**
