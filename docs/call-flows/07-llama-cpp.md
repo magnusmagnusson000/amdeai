@@ -8,22 +8,17 @@
 
 | Backend | Build dir | Default for | Env |
 |---------|-----------|-------------|-----|
-| **Vulkan** | `build-vulkan/` | Gemma 4 26B-A4B (MoE) | `EAI_LLAMA_BACKEND=vulkan` |
-| **HIP/ROCm** | `build-hip/` | SLMs, cluster-style local tests | `EAI_LLAMA_BACKEND=hip` |
+| **HIP/ROCm** | `build-hip/` | **All models — Gemma 4 + SLMs (default, validated 2026-06-08)** | `EAI_LLAMA_BACKEND=hip` |
+| **Vulkan** | `build-vulkan/` | Fallback (Mesa RADV, no ROCm dependency) | `EAI_LLAMA_BACKEND=vulkan` |
 
 Both backends share the same GGML graph; only the GPU dispatch layer differs.
 
-## Downward path (prompt → hardware) — Vulkan (Gemma 4 default)
+## Downward path (prompt → hardware) — HIP (default)
 
 1. **HTTP:** `POST /v1/chat/completions` → `tools/server`
-2. **Graph:** `llama-graph.cpp` — matmul, RoPE, MoE router (Gemma 4-A4B)
-3. **Backend:** `ggml-vulkan` → Mesa RADV → DRM → gfx1151
-
-## Downward path — HIP (standard ROCm, after gfx1151 patches)
-
-1. Same HTTP and graph build as above.
-2. **Backend:** `ggml-cuda` (HIP) → `hipLaunchKernel` → ROCclr → KFD → gfx1151
-3. **gfx1151 patches (branch `gfx1151-rdna35-tuning`):**
+2. **Graph:** `llama-graph.cpp` — matmul, RoPE, MoE router (Gemma 4-A4B, unfused via G3)
+3. **Backend:** `ggml-cuda` (HIP) → `hipLaunchKernel` → ROCclr → KFD → gfx1151
+4. **gfx1151 patches (branch `gfx1151-rdna35-tuning`, merged to master @ `0ab06d382`):**
    - `mmvq.cu` — `MMVQ_PARAMETERS_RDNA3_5` (`nwarps=4`)
    - `mmq.cuh` — tile sizes 48×64, `nwarps=4`
    - `topk-moe.cu` — disable fused MoE on RDNA3_5 (workaround #21416)
@@ -35,13 +30,13 @@ Fence/event → sampling → SSE/JSON → AI Workbench backend → UI.
 ## Build commands
 
 ```bash
-# Vulkan (default script backend for Gemma)
-cmake -B build-vulkan -DGGML_VULKAN=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build build-vulkan -j$(nproc)
-
-# HIP (gfx1151)
+# HIP (default — gfx1151, validated 2026-06-08)
 cmake -B build-hip -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx1151 -DCMAKE_BUILD_TYPE=Release
 cmake --build build-hip -j$(nproc)
+
+# Vulkan (fallback — Mesa RADV, no ROCm dependency)
+cmake -B build-vulkan -DGGML_VULKAN=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build-vulkan -j$(nproc)
 ```
 
 ## SLM test (before/after patches)

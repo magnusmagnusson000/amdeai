@@ -29,9 +29,9 @@ ROCm is the **standard GPU compute backbone** for the Enterprise AI suite:
    - `MIOPEN_FIND_ENFORCE=1` — avoids MIOpen CK lockup ([#5259](https://github.com/ROCm/TheRock/issues/5259))
 4. **Firmware:** MES 0x80 preferred; avoid MES 0x83 hang ([#5724](https://github.com/ROCm/ROCm/issues/5724))
 
-## Vulkan path (local Gemma 4 workaround)
+## Vulkan path (fallback)
 
-Host llama.cpp with **Mesa RADV** uses DRM only (no HIP per token). Used for Gemma 4 MoE until HIP fusion is fixed ([#21416](https://github.com/ggml-org/llama.cpp/issues/21416)).
+Host llama.cpp with **Mesa RADV** uses DRM only (no HIP per token). Available as `EAI_LLAMA_BACKEND=vulkan`. The HIP MoE bug ([#21416](https://github.com/ggml-org/llama.cpp/issues/21416)) is resolved via G1–G3 patches; HIP is now the default for all local models including Gemma 4.
 
 ## Upward (completion)
 

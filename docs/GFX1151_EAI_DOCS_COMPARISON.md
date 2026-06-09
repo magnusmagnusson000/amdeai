@@ -103,7 +103,7 @@ These are the **same pattern**; we name concrete operators (Kueue, device plugin
 **Our additional local path (not in official docs):** Workbench → AIMModel CR → **host** `llama-server` (:8080) → Vulkan or HIP. This exists because:
 
 1. Single-node Z13 demo with a registered local Gemma model.
-2. [llama.cpp #21416](https://github.com/ggml-org/llama.cpp/issues/21416): Gemma 4 MoE on gfx1151 HIP needed a workaround (Vulkan default until patches validated).
+2. [llama.cpp #21416](https://github.com/ggml-org/llama.cpp/issues/21416): Gemma 4 MoE on gfx1151 HIP — resolved via G1–G3 patches (unfused RDNA3_5 MoE path). HIP validated 2026-06-08; Vulkan available as fallback.
 
 Official docs should state: *on gfx1151, cluster inference via Kaiwo/vLLM is the supported EAI path; optional host-side llama.cpp is a single-node pattern documented separately.*
 
@@ -229,14 +229,14 @@ Documented in [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md). Summ
 
 | ID | Issue | Layer | Official doc today | Suggested doc note |
 |----|-------|-------|--------------------|--------------------|
-| G1–G3 | llama.cpp RDNA3.5 MMVQ/MMQ; MoE fusion | Host llama.cpp HIP | Not covered | “Host llama.cpp HIP on gfx1151: use patched build or Vulkan for Gemma 4 MoE” |
+| G1–G3 | llama.cpp RDNA3.5 MMVQ/MMQ; MoE fusion | Host llama.cpp HIP | Not covered | “Host llama.cpp HIP on gfx1151: use patched build (G1–G3). **HIP validated 2026-06-08** for Gemma 4 + SLMs; Vulkan available as fallback.” |
 | G4 | HIP PERMISSION_FAULT | ROCm / UMA | Not covered | `HSA_ENABLE_SDMA=0` |
 | G5 | MIOpen CK lockup | vLLM/PyTorch pods | Not covered | `MIOPEN_FIND_ENFORCE=1` |
 | G6 | MES 0x83 firmware hang | linux-firmware | Not covered | Link [ROCm#5724](https://github.com/ROCm/ROCm/issues/5724) |
 | G7 | KFD ABI ≥1.20 | Kernel | Not covered | Kernel ≥6.17 |
 | G8 | AOTriton experimental | PyTorch | Not covered | TheRock nightlies for gfx1151 |
 
-**Gemma 4 MoE:** [llama.cpp #21416](https://github.com/ggml-org/llama.cpp/issues/21416) — HIP produced `<unused24>` token loop; fixes merged locally to llama.cpp `master` (`0ab06d382`); validation requires free GPU (stop other consumers e.g. Ollama). Until validated, [CALL_FLOW_OVERVIEW.md](CALL_FLOW_OVERVIEW.md) keeps **Vulkan as default** for local Gemma 4.
+**Gemma 4 MoE:** [llama.cpp #21416](https://github.com/ggml-org/llama.cpp/issues/21416) — HIP produced `<unused24>` token loop; **resolved** via G1–G3 patches (unfused MoE on RDNA3_5, merged to llama.cpp `master` @ `0ab06d382`). **HIP validated 2026-06-08**: Gemma 4 26B-A4B — 114 t/s prompt, 36 t/s gen, no router corruption. HIP is now the default backend; Vulkan available as `EAI_LLAMA_BACKEND=vulkan`.
 
 ---
 

@@ -1,81 +1,70 @@
-# Call flow: Gemma 4 31B (local inference via AIMModel)
+# Call flow: Gemma 4 31B (local GGUF + AIMModel on gfx1151)
 
-**Source:** `~/eai-build/llama.cpp/` (built by `scripts/07-llama-cpp.sh`)  
 **Script:** `scripts/08-gemma4-31b.sh`  
-**Model:** `~/models/gemma-4-31b-it-Q4_K_M.gguf` (~19 GB Q4_K_M, dense 31B)
+**Model weights:** existing local GGUF only (~19 GiB) — **no Hugging Face download**
 
-## Backends on gfx1151
+## Overview
 
-| Backend | Build dir | Notes | Env |
-|---------|-----------|-------|-----|
-| **Vulkan** | `build-vulkan/` | Default — safe for Gemma 4 on gfx1151 | `EAI_LLAMA_BACKEND=vulkan` |
-| **HIP/ROCm** | `build-hip/` | Dense 31B may work; validate with `validate-hip-gfx1151.sh` | `EAI_LLAMA_BACKEND=hip` |
+Gemma 4 31B uses one copy of weights already on disk. Inference runs on the host via llama.cpp; AIM Engine registers the endpoint for AI Workbench:
 
-Gemma 4 31B is a **dense** model (not MoE), so HIP is less risky than the 26B-A4B MoE variant. Vulkan remains the default until HIP is validated on your branch.
-
-## Service
-
-| Property | Value |
-|----------|-------|
-| systemd unit | `llama-gemma-31b.service` |
-| Port | `8081` (26B-A4B uses `:8080`) |
-| AIMModel CR | `gemma-4-31b-local` |
-| modelId | `gemma-4-31b` |
-
-## AIM registration (AIM Engine v0.2.x)
-
-AIM Engine v0.2.x removed `spec.endpoint` / `displayName` / `capabilities` on `AIMModel`. This script registers:
-
-1. **Service + Endpoints** `gemma-4-31b-local` — bridges cluster pods to host `llama-server` at `<node-ip>:8081`
-2. **AIMModel** catalog stub with annotations:
-   - `aim.eai.amd.com/external-endpoint`
-   - `aim.eai.amd.com/display-name`
-   - `aim.eai.amd.com/model-id`
-
-Direct inference (always works):
-
-```bash
-curl http://<node-ip>:8081/v1/chat/completions ...
-curl http://gemma-4-31b-local.default.svc.cluster.local:8081/v1/chat/completions ...
+```
+local GGUF  →  llama-server (:8081)  →  Service/Endpoints  →  AIMModel  →  AIWB
 ```
 
-## Upward path
+Managed `AIMService` + `hf://google/gemma-4-31b-it` is **not** used on this machine — it would duplicate weights (~70 GiB HF safetensors vs ~19 GiB GGUF).
 
-Fence/event → sampling → SSE/JSON → AI Workbench backend → UI.
+## Prerequisites
+
+```bash
+# Weights (symlink OK)
+ls -lh ~/models/gemma-4-31b-it-Q4_K_M.gguf
+
+# llama.cpp HIP build (from step 07)
+EAI_LLAMA_BACKEND=hip bash scripts/07-llama-cpp.sh   # if not already built
+```
+
+The script runs `check_disk_before_step` and refuses to start if root free space is below `EAI_MIN_FREE_GB` (default 15 GiB).
 
 ## Deploy
 
 ```bash
-# Prerequisite: llama.cpp binaries from step 07
-bash scripts/07-llama-cpp.sh
+EAI_LLAMA_BACKEND=hip bash scripts/08-gemma4-31b.sh
+```
 
-# Model (symlink if already downloaded elsewhere)
-mkdir -p ~/models
-ln -sf /path/to/google_gemma-4-31B-it-Q4_K_M.gguf ~/models/gemma-4-31b-it-Q4_K_M.gguf
+Resources created:
 
-# Deploy 31B service + AIMModel CR
-bash scripts/08-gemma4-31b.sh
+| Resource | Name | Role |
+|----------|------|------|
+| systemd user unit | `llama-gemma-31b.service` | Host inference from local GGUF |
+| `Service` + `Endpoints` | `gemma-4-31b-local` | Cluster → host bridge |
+| `AIMModel` | `gemma-4-31b-local` | AIM catalog entry (Ready) |
+
+Optional override:
+
+```bash
+GEMMA31_MODEL_PATH=/path/to/model.gguf bash scripts/08-gemma4-31b.sh
 ```
 
 ## Validate
 
 ```bash
 curl -sf http://localhost:8081/health
-kubectl describe aimmodel gemma-4-31b-local
-curl http://localhost:8081/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gemma-4-31b","messages":[{"role":"user","content":"Hello"}]}'
+kubectl get aimmodel gemma-4-31b-local -n default
+kubectl describe aimmodel gemma-4-31b-local -n default
+curl -s http://localhost:8081/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"gemma-4-31b","messages":[{"role":"user","content":"Hi"}],"max_tokens":16}'
 ```
 
 ## Coexistence with 26B-A4B
 
-Both services can run simultaneously on gfx1151 (128 GB unified memory):
+| Model | Script | Port |
+|-------|--------|------|
+| Gemma 4 26B-A4B | `scripts/07-llama-cpp.sh` | `:8080` |
+| Gemma 4 31B | `scripts/08-gemma4-31b.sh` | `:8081` |
 
-| Model | Port | Service |
-|-------|------|---------|
-| Gemma 4 26B-A4B | 8080 | `llama-gemma.service` |
-| Gemma 4 31B | 8081 | `llama-gemma-31b.service` |
+## Future: managed AIMService
 
-## Relation to standard EAI path
+When AMD ships `amdenterpriseai/aim-google-gemma-4-31b-it` and you want in-cluster vLLM (separate HF weights), add the image to `clusterforge/.../aim-models-0.11.0.yaml`. Do not apply `manifests/aim/gemma-4-31b/` profiles with `hf://` sources on a disk-constrained host.
 
-Same as `07-llama-cpp.md`: host `llama-server` exposed via **Service + Endpoints** and an **AIMModel** catalog stub (AIM Engine v0.2.x schema). No AIM Engine inference pods are spawned. In-cluster `AIMService` deployment requires an official `amdenterpriseai/aim-google-gemma-4-31b-it` container image (not yet in the AIM catalog).
+Reference catalog stub (not applied by default): `manifests/aim/gemma-4-31b/aim-clustermodel.yaml`.

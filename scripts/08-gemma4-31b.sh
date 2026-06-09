@@ -9,42 +9,52 @@ export MY_IP=$(my_ip)
 
 GEMMA31_MODEL_PATH="${GEMMA31_MODEL_PATH:-$HOME/models/gemma-4-31b-it-Q4_K_M.gguf}"
 EAI_LLAMA_CPP_DIR="${EAI_LLAMA_CPP_DIR:-$EAI_BUILD_DIR/llama.cpp}"
-EAI_LLAMA_BACKEND="${EAI_LLAMA_BACKEND:-vulkan}"   # vulkan | hip
+EAI_LLAMA_BACKEND="${EAI_LLAMA_BACKEND:-hip}"
 LLAMA_PORT="${LLAMA31_PORT:-8081}"
+AIM_MODEL_NAME="${AIM_MODEL_NAME:-gemma-4-31b-local}"
+AIM_SERVICE_NAME="${AIM_SERVICE_NAME:-gemma-4-31b-chat}"
 
-echo "=== 08-gemma4-31b (backend=${EAI_LLAMA_BACKEND}, port=${LLAMA_PORT}) ==="
-echo "Model: $GEMMA31_MODEL_PATH"
-echo "llama.cpp dir: $EAI_LLAMA_CPP_DIR"
+echo "=== 08-gemma4-31b (local GGUF + AIMModel) ==="
 
+if [[ ! -f "$GEMMA31_MODEL_PATH" ]]; then
+  echo "ERROR: model not found at $GEMMA31_MODEL_PATH"
+  echo "  ln -sf /path/to/google_gemma-4-31B-it-Q4_K_M.gguf $GEMMA31_MODEL_PATH"
+  exit 1
+fi
+MODEL_SIZE=$(du -hL "$GEMMA31_MODEL_PATH" | awk '{print $1}')
+echo "Model GGUF: $GEMMA31_MODEL_PATH ($MODEL_SIZE, no HF download)"
+
+teardown_managed_hf_gemma() {
+  echo "Removing managed HF Gemma 31B resources (if any)..."
+  kubectl delete aimservice "$AIM_SERVICE_NAME" -n default --ignore-not-found --wait=false 2>/dev/null || true
+  kubectl delete aimclusterprofile google-gemma-4-31b-r9700-latency --ignore-not-found --wait=false 2>/dev/null || true
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    kubectl delete "$name" -n default --ignore-not-found --wait=false 2>/dev/null || true
+  done < <(kubectl get aimartifact,aimprofilecache,inferenceservice -n default -o name 2>/dev/null | grep -i gemma || true)
+  # PVC may be blocked by Kyverno; warn but do not fail the local deploy path.
+  if kubectl get pvc -n default -o name 2>/dev/null | grep -qi gemma; then
+    echo "WARN: HF Gemma PVC still present (delete manually if Kyverno allows):"
+    kubectl get pvc -n default 2>/dev/null | grep -i gemma || true
+  fi
+}
+
+teardown_managed_hf_gemma
+
+# --- Host llama-server (existing GGUF, ~19 GiB) ---
 LLAMA_SERVER_BIN=""
 case "$EAI_LLAMA_BACKEND" in
-  hip)
-    LLAMA_SERVER_BIN="$EAI_LLAMA_CPP_DIR/build-hip/bin/llama-server"
-    ;;
-  vulkan|*)
-    LLAMA_SERVER_BIN="$EAI_LLAMA_CPP_DIR/build-vulkan/bin/llama-server"
-    ;;
+  hip) LLAMA_SERVER_BIN="$EAI_LLAMA_CPP_DIR/build-hip/bin/llama-server" ;;
+  *)   LLAMA_SERVER_BIN="$EAI_LLAMA_CPP_DIR/build-vulkan/bin/llama-server" ;;
 esac
 
 if [[ ! -x "$LLAMA_SERVER_BIN" ]]; then
   echo "ERROR: llama-server not found at $LLAMA_SERVER_BIN"
-  echo "Run scripts/07-llama-cpp.sh first to build llama.cpp binaries."
+  echo "  EAI_LLAMA_BACKEND=hip bash scripts/07-llama-cpp.sh"
   exit 1
 fi
-
-if [[ ! -f "$GEMMA31_MODEL_PATH" ]]; then
-  echo "ERROR: model not found at $GEMMA31_MODEL_PATH"
-  echo "Download or symlink the GGUF, e.g.:"
-  echo "  mkdir -p ~/models"
-  echo "  ln -sf /path/to/google_gemma-4-31B-it-Q4_K_M.gguf ~/models/gemma-4-31b-it-Q4_K_M.gguf"
-  exit 1
-fi
-
-MODEL_SIZE=$(du -hL "$GEMMA31_MODEL_PATH" | awk '{print $1}')
-echo "Model size: $MODEL_SIZE"
 
 systemctl --user stop llama-gemma-31b.service 2>/dev/null || true
-
 mkdir -p ~/.config/systemd/user
 cat > ~/.config/systemd/user/llama-gemma-31b.service << EOF
 [Unit]
@@ -57,8 +67,6 @@ WorkingDirectory=$EAI_LLAMA_CPP_DIR
 Environment=HSA_OVERRIDE_GFX_VERSION=11.5.1
 Environment=HSA_ENABLE_SDMA=0
 Environment=MIOPEN_FIND_ENFORCE=1
-Environment=PYTORCH_TUNABLEOP_ENABLED=1
-Environment=TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
 ExecStart=$LLAMA_SERVER_BIN \\
   --model ${GEMMA31_MODEL_PATH} \\
   --n-gpu-layers 999 \\
@@ -74,39 +82,30 @@ Restart=on-failure
 [Install]
 WantedBy=default.target
 EOF
-
 systemctl --user daemon-reload
 systemctl --user enable --now llama-gemma-31b.service
 
-echo "Waiting for llama-server on port ${LLAMA_PORT}..."
+echo "Waiting for llama-server on :${LLAMA_PORT}..."
 for _ in $(seq 1 60); do
-  if curl -sf "http://localhost:${LLAMA_PORT}/health" >/dev/null 2>&1; then
-    echo " llama-server healthy (${EAI_LLAMA_BACKEND})"
-    break
-  fi
+  curl -sf "http://localhost:${LLAMA_PORT}/health" >/dev/null 2>&1 && break
   sleep 5
 done
-
-if ! curl -sf "http://localhost:${LLAMA_PORT}/health" >/dev/null 2>&1; then
-  echo "ERROR: llama-server did not become healthy on port ${LLAMA_PORT}"
-  systemctl --user status llama-gemma-31b.service --no-pager || true
-  journalctl --user -u llama-gemma-31b.service -n 40 --no-pager || true
+curl -sf "http://localhost:${LLAMA_PORT}/health" || {
+  echo "ERROR: llama-server failed to start"
+  journalctl --user -u llama-gemma-31b.service -n 30 --no-pager || true
   exit 1
-fi
+}
+echo " llama-server healthy (${EAI_LLAMA_BACKEND})"
 
-kubectl delete aimmodel gemma-4-31b-local --ignore-not-found
-kubectl delete service gemma-4-31b-local --ignore-not-found
-kubectl delete endpoints gemma-4-31b-local --ignore-not-found
-
-# Cluster Service + Endpoints bridge host llama-server to in-cluster consumers (AIWB pods).
+# --- AIM registration: Service/Endpoints bridge + catalog AIMModel ---
 kubectl apply -f - << EOF
 apiVersion: v1
 kind: Service
 metadata:
-  name: gemma-4-31b-local
+  name: ${AIM_MODEL_NAME}
   namespace: default
   labels:
-    app: gemma-4-31b-local
+    app: ${AIM_MODEL_NAME}
 spec:
   ports:
   - name: http
@@ -116,7 +115,7 @@ spec:
 apiVersion: v1
 kind: Endpoints
 metadata:
-  name: gemma-4-31b-local
+  name: ${AIM_MODEL_NAME}
   namespace: default
 subsets:
 - addresses:
@@ -126,26 +125,51 @@ subsets:
     port: ${LLAMA_PORT}
 EOF
 
-# AIM Engine v0.2.x removed spec.endpoint/displayName/capabilities on AIMModel.
-# Register a catalog stub with external-endpoint annotation + in-cluster Service bridge.
 kubectl apply -f - << EOF
 apiVersion: aim.eai.amd.com/v1alpha1
 kind: AIMModel
 metadata:
-  name: gemma-4-31b-local
+  name: ${AIM_MODEL_NAME}
   namespace: default
   annotations:
     aim.eai.amd.com/external-endpoint: "http://${MY_IP}:${LLAMA_PORT}"
     aim.eai.amd.com/display-name: "Gemma 4 31B (local Q4_K_M)"
     aim.eai.amd.com/model-id: "gemma-4-31b"
 spec:
-  image: amdenterpriseai/aim-base:0.11.0
+  image: amdenterpriseai/aim-base:0.9
   discovery:
     extractMetadata: false
     createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: docker.io/amdenterpriseai/aim-base:0.9
+    model:
+      canonicalName: google/gemma-4-31b-it
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - instruction
+      descriptionFull: >
+        Gemma 4 31B instruction-tuned dense model served from local GGUF weights
+        on gfx1151 (Strix Halo) via host llama-server.
 EOF
 
-echo "AIMModel gemma-4-31b-local registered at http://${MY_IP}:${LLAMA_PORT}"
-echo "Call flow: $EAI_ROOT/docs/call-flows/08-gemma4-31b.md"
-echo "Overview: $EAI_ROOT/docs/CALL_FLOW_OVERVIEW.md"
+echo "Waiting for AIMModel ${AIM_MODEL_NAME}..."
+for _ in $(seq 1 30); do
+  STATUS=$(kubectl get aimmodel "${AIM_MODEL_NAME}" -n default -o jsonpath='{.status.status}' 2>/dev/null || echo "")
+  if [[ "$STATUS" == "Ready" ]]; then
+    echo " AIMModel Ready"
+    break
+  fi
+  sleep 2
+done
+
+kubectl get aimmodel "${AIM_MODEL_NAME}" -n default -o wide 2>/dev/null || true
+kubectl get svc,endpoints "${AIM_MODEL_NAME}" -n default 2>/dev/null || true
+
+echo ""
+echo "Endpoint: http://${MY_IP}:${LLAMA_PORT}"
+echo "In-cluster: http://${AIM_MODEL_NAME}.default.svc.cluster.local:${LLAMA_PORT}"
+echo "AIMModel:   kubectl describe aimmodel ${AIM_MODEL_NAME} -n default"
+echo "Call flow:  $EAI_ROOT/docs/call-flows/08-gemma4-31b.md"
 disk_report "08-gemma4-31b-done"

@@ -224,7 +224,7 @@ No source patches required. Ensure GPU pod specs inherit the env vars above (Dae
 | `scripts/01-host-rocm.sh` | Auto-remove `amdgpu-dkms`; install `linux-oem-24.04d`; add `amdgpu.cwsr_enable=0` to GRUB |
 | `scripts/validate-hip-gfx1151.sh` | SLM → Phi-4-mini; DKMS guard; `--single-turn` exit fix |
 | `scripts/diag-hip-gfx1151.sh` | Deep HIP diagnostic runner (kernel logs, per-case timeouts) |
-| `docs/call-flows/*.md` | ROCm as standard path; Vulkan as Gemma workaround |
+| `docs/call-flows/*.md` | ROCm as standard path; HIP default for local Gemma 4 (G1–G3 validated); Vulkan as fallback |
 | `docs/CALL_FLOW_OVERVIEW.md` | Dual-path overview |
 | `docs/OVERVIEW.md` | Standard vs gfx1151-specific paths |
 | `docs/gfx1151-upstream-pr-guide.md` | Added G9 (amdgpu-dkms root cause + fix) |

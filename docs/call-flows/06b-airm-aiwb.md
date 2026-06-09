@@ -6,7 +6,7 @@
 ## Entry (top of stack)
 
 1. Browser → `https://aiwbui.<DOMAIN>` (TLS via cert-manager + MetalLB).
-2. **Keycloak** SSO (`silogen-admin`).
+2. **Keycloak** SSO — click **Sign in with Keycloak**, log in as `devuser@<DOMAIN>` (password: `kubectl -n keycloak get secret airm-realm-credentials -o jsonpath='{.data.KEYCLOAK_INITIAL_DEVUSER_PASSWORD}' | base64 --decode`).
 3. AI Workbench SPA → backend API (authenticated).
 
 ## Model resolution

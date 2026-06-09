@@ -3,7 +3,7 @@
 **Platform:** Asus Z13 · Radeon 8060S (gfx1151, RDNA 3.5) · 128 GB LPDDR5x · Ubuntu 24.04 LTS  
 **Primary model:** Gemma 4 26B-A4B Q4\_K\_M (GGUF, ~14 GB quantised)  
 **Standard inference:** ROCm HIP via Kaiwo + vLLM (cluster GPU pods)  
-**Local host inference:** llama.cpp — Vulkan for Gemma 4 (HIP workaround); HIP for SLMs after gfx1151 patches  
+**Local host inference:** llama.cpp — HIP (ROCm, validated 2026-06-08 for Gemma 4 + SLMs); Vulkan available as fallback  
 **gfx1151 guide:** [docs/gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md)
 
 This document covers:
@@ -31,7 +31,7 @@ This document covers:
 │  cluster-forge / ArgoCD / Gitea  (deploy-time only)                 │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Layer 4 — Kubernetes platform                                       │
-│  k3s API server  ·  Longhorn  ·  KubeRay  ·  KServe                 │
+│  RKE2 (Bloom) or k3s (lab)  ·  Longhorn  ·  KubeRay  ·  KServe     │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Layer 3 — GPU scheduling                                            │
 │  ROCm k8s-device-plugin  →  amd.com/gpu kubelet resource            │
@@ -40,8 +40,8 @@ This document covers:
 │  k3s kubelet  ·  containerd  ·  local registry :32000               │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Layer 1 — Host inference (local Workbench endpoint)                 │
-│  llama-server (systemd)  ·  GGML  ·  Vulkan (Gemma) or HIP (SLM)   │
-│  Mesa RADV or ROCm HIP → amdgpu                                      │
+│  llama-server (systemd)  ·  GGML  ·  HIP (default) or Vulkan        │
+│  ROCm HIP → amdgpu KFD  or  Mesa RADV → amdgpu DRM                  │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Layer 0 — Kernel + hardware                                         │
 │  amdgpu DRM/KFD  ·  ROCm 7.2.3 userspace  ·  gfx1151 CUs           │
@@ -87,9 +87,9 @@ sequenceDiagram
 
 Used when a model is registered via **AIMModel** pointing at host `llama-server`. This stack registers **Gemma 4** for AI Workbench chat.
 
-> **gfx1151 note:** Gemma 4's MoE layer triggers a known HIP bug on gfx1151 ([#21416](https://github.com/ggml-org/llama.cpp/issues/21416)). **Vulkan** is the default backend for Gemma 4. **HIP** (branch `gfx1151-rdna35-tuning`) is used for SLMs and after upstream fixes. See [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md).
+> **gfx1151 note:** Gemma 4's MoE HIP bug ([#21416](https://github.com/ggml-org/llama.cpp/issues/21416)) is **resolved** via G1–G3 patches (unfused RDNA3_5 MoE path). **HIP is now the default backend** for both Gemma 4 and SLMs (validated 2026-06-08: 114 t/s prompt, 36 t/s gen, no router corruption). Vulkan remains available as a fallback. See [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md).
 
-This is the path followed for every token when a user chats with the registered **Gemma 4 26B-A4B (local)** model (Vulkan backend).
+This is the path followed for every token when a user chats with the registered **Gemma 4 26B-A4B (local)** model (HIP backend, Vulkan fallback).
 
 ```mermaid
 sequenceDiagram
@@ -103,9 +103,8 @@ sequenceDiagram
     participant CR       as AIMModel CR
     participant Server   as llama-server :8080
     participant GGML     as GGML graph scheduler
-    participant Vulkan   as Vulkan backend (ggml-vulkan)
-    participant RADV     as Mesa RADV ICD
-    participant DRM      as amdgpu DRM kernel
+    participant HIP      as HIP backend (ggml-cuda/ROCm)
+    participant KFD      as amdgpu KFD
     participant HW       as Radeon 8060S — gfx1151
 
     User->>Browser: Type chat prompt, press Send
@@ -123,7 +122,7 @@ sequenceDiagram
     Note over AIWB_API,CR: One-time model resolution (cached after first load)
     AIWB_API->>AIM: Resolve model "gemma-4-26b-a4b-local"
     AIM->>CR: Watch/Get AIMModel CR
-    CR-->>AIM: spec.endpoint.url = http://<node-ip>:8080, type=OpenAI
+    CR-->>AIM: annotation external-endpoint = http://<node-ip>:8080
     AIM-->>AIWB_API: Endpoint URL + capabilities
 
     Note over AIWB_API,Server: HTTP leaves cluster → host network
@@ -136,18 +135,15 @@ sequenceDiagram
 
     Note over GGML,HW: Per-token decode loop (repeated until EOS or max_tokens)
     loop Each decode step
-        GGML->>GGML: Schedule ops: matmul, RoPE, softmax, MoE router (A4B)
-        GGML->>Vulkan: Dispatch tensor ops → ggml_vk_compute_forward()
-        Vulkan->>Vulkan: Encode command buffer (SPIR-V compute pipelines)
-        Vulkan->>RADV: vkQueueSubmit(computeQueue, cmdBuf, fence)
-        RADV->>DRM: DRM ioctl — CS_SUBMIT (command stream)
-        DRM->>DRM: Allocate BOs in GTT pool (GRUB: amdgpu.gttsize)\nSchedule IB on GFX ring
-        DRM->>HW: PM4 packets → GFX queue execution
+        GGML->>GGML: Schedule ops: matmul, RoPE, softmax, MoE router (A4B, unfused G3)
+        GGML->>HIP: Dispatch tensor ops → hipLaunchKernel / hipblasGemm
+        HIP->>KFD: KFD ioctl — queue submit IB to GFX ring
+        KFD->>KFD: Allocate BOs in GTT pool (GRUB: amdgpu.gttsize)\nSchedule IB on GFX ring
+        KFD->>HW: GFX ring execution
         HW->>HW: WMMA / vector ALU — matmul, attention, MoE gate
-        HW-->>DRM: Completion interrupt (GPU fence)
-        DRM-->>RADV: Fence signal → wakeup
-        RADV-->>Vulkan: vkWaitForFences() returns
-        Vulkan-->>GGML: Tensor result in unified memory
+        HW-->>KFD: Completion signal (HSA event)
+        KFD-->>HIP: HIP event signalled
+        HIP-->>GGML: Tensor result in unified memory
         GGML->>GGML: Logits → softmax → sample next token id
     end
 
@@ -169,7 +165,7 @@ sequenceDiagram
 | k8s-device-plugin | `amd.com/gpu` resource advertising | Kubelet scheduling (standard HIP path) |
 | Longhorn | Persistent storage | Pod PVC I/O (not host GGUF file) |
 | KServe / KubeRay | Alternative serving frameworks | Only if InferenceService deployed |
-| ROCm HIP in host llama.cpp | GPU backend for local server | Standard for SLMs; Vulkan for Gemma 4 on gfx1151 |
+| ROCm HIP in host llama.cpp | GPU backend for local server | Default for Gemma 4 + SLMs (validated 2026-06-08); Vulkan available as fallback |
 | AIRM | GPU inventory / policies | Dashboard queries, not token path |
 | MetalLB | LoadBalancer VIP | TCP connection setup only |
 
@@ -184,7 +180,7 @@ sequenceDiagram
 
 ### Quick summary
 
-ROCm (Radeon Open Compute platform) is AMD's open-source GPU compute stack and the **standard GPU substrate for the Enterprise AI suite**. It provides HIP, rocBLAS, MIOpen, rocm-smi, and KFD. Cluster inference (Kaiwo → vLLM) uses ROCm HIP on every token. Host llama.cpp may use Vulkan (Gemma 4 on gfx1151) or HIP (SLMs and post-patch workloads). See [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md) for gfx1151-specific fixes.
+ROCm (Radeon Open Compute platform) is AMD's open-source GPU compute stack and the **standard GPU substrate for the Enterprise AI suite**. It provides HIP, rocBLAS, MIOpen, rocm-smi, and KFD. Cluster inference (Kaiwo → vLLM) uses ROCm HIP on every token. Host llama.cpp uses HIP by default for both Gemma 4 and SLMs (validated 2026-06-08); Vulkan is available as a fallback. See [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md) for gfx1151-specific fixes.
 
 ### Detailed explanation
 
@@ -617,40 +613,63 @@ AIM Engine (AMD Inference Microservices Engine) is a Kubernetes operator that ma
 | CRD | Purpose |
 |-----|---------|
 | `AIMService` | Full managed inference deployment: selects runtime image, provisions pods, sets up scaling |
-| `AIMModel` | Lightweight registration of an existing endpoint (URL + type) — used for external/host endpoints |
-| `ClusterRuntimeConfig` | Cluster-wide routing policies and credential configuration |
+| `AIMModel` | Catalog entry — external endpoint via annotations + Service/Endpoints bridge, or image-based discovery |
+| `AIMClusterRuntimeConfig` | Cluster-wide routing policies and credential configuration |
 
-**AIMService — full managed lifecycle**
+**AIMService — full managed lifecycle (MI-series / upstream path)**
 
-For a managed deployment, AIM Engine:
-1. Selects an optimal AIM container image (e.g., `amdenterpriseai/aim-qwen-qwen3-32b:0.8.5`) based on GPU availability and precision requirements.
+> Not used on this Z13: AIMService triggers a Hugging Face weight download (70+ GB for Gemma 4) and requires AcceleratorDetector labels not published for gfx1151. The Z13 path is the external endpoint pattern below.
+
+For a managed deployment on MI-series clusters, AIM Engine:
+1. Selects an optimal AIM container image (e.g., `amdenterpriseai/aim-qwen-qwen3-32b:0.11.0`) based on AcceleratorDetector GPU labels and precision requirements.
 2. Creates a Kubernetes `Deployment` with the runtime container, GPU resource requests, model source configuration (Hugging Face Hub or S3), and a PVC model cache.
 3. Sets up a `Service` and optionally an `HTTPRoute` via Gateway API for routing to the inference endpoint.
 4. Configures **KEDA** autoscaling on OpenTelemetry metrics (queue depth, token throughput) for demand-based scaling.
 
 **AIMModel — external endpoint registration**
 
-For the primary local Gemma path, `scripts/07-llama-cpp.sh` applies an `AIMModel` CR:
+`spec.endpoint` was removed in AIM Engine v0.2.x. For the primary local Gemma path, `scripts/07-llama-cpp.sh` uses a **Service/Endpoints bridge** to route cluster traffic to the host `llama-server`, then registers a catalog-only `AIMModel`:
 
 ```yaml
+# 1. Bridge: cluster Service → host IP:8080
+apiVersion: v1
+kind: Service
+metadata:
+  name: gemma-4-26b-a4b-local
+  namespace: default
+spec:
+  ports: [{name: http, port: 8080, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: gemma-4-26b-a4b-local
+  namespace: default
+subsets:
+- addresses: [{ip: <node-ip>}]
+  ports: [{name: http, port: 8080}]
+---
+# 2. Catalog stub (no pods created)
 apiVersion: aim.eai.amd.com/v1alpha1
 kind: AIMModel
 metadata:
   name: gemma-4-26b-a4b-local
+  namespace: default
+  annotations:
+    aim.eai.amd.com/external-endpoint: "http://<node-ip>:8080"
+    aim.eai.amd.com/display-name: "Gemma 4 26B-A4B (local Q4_K_M)"
+    aim.eai.amd.com/model-id: "gemma-4"
 spec:
-  displayName: "Gemma 4 26B-A4B (local Q4_K_M)"
-  endpoint:
-    url: "http://<node-ip>:8080"
-    type: OpenAI
-  modelId: "gemma-4"
-  capabilities: [chat, vision]
+  image: amdenterpriseai/aim-base:0.9
+  discovery:
+    extractMetadata: false
+    createServiceTemplates: false
 ```
 
 The AIM Engine operator:
-- Validates the endpoint URL and type.
-- Writes `status.conditions` (Ready) once the endpoint is reachable.
-- Does **not** create any inference pods for an external endpoint — it is a registration only.
-- Exposes the model in AIWB's model catalog.
+- Reads the `aim.eai.amd.com/external-endpoint` annotation to surface the model in AIWB's catalog.
+- Writes `status.conditions` (Ready) once the endpoint is reachable via the Service.
+- Does **not** create any inference pods — the Service/Endpoints bridge handles routing to the host process.
 
 **Controller internals**
 
@@ -767,11 +786,11 @@ AIWB is deployed as a Helm chart containing:
 **Request lifecycle**
 
 1. **User opens** `https://aiwbui.<domain>` — TLS terminated by cert-manager ingress.
-2. **Keycloak SSO:** Unauthenticated requests redirect to `https://keycloak.<domain>/auth`. User logs in as `silogen-admin` (created by cluster-forge bootstrap).
+2. **Keycloak SSO:** Unauthenticated requests redirect to Keycloak (`https://kc.<domain>` on Bloom). AIWB and AIRM users log in as `devuser@<domain>` via **Sign in with Keycloak**; `silogen-admin` is the Keycloak admin account only.
 3. **Model catalog:** SPA fetches the model list from AIWB backend, which lists all `AIMModel` CRs in the aim-system namespace.
 4. **User selects** "Gemma 4 26B-A4B (local)" — backend resolves this to `AIMModel` CR `gemma-4-26b-a4b-local`.
 5. **Prompt sent:** SPA POSTs to AIWB backend with `{model: "gemma-4", messages: [...]}`.
-6. **Endpoint resolution:** Backend (or an AIM Engine sidecar) reads `spec.endpoint.url = http://<node-ip>:8080` from the CR.
+6. **Endpoint resolution:** Backend reads the `aim.eai.amd.com/external-endpoint` annotation on the `AIMModel` CR to obtain `http://<node-ip>:8080` (the Service/Endpoints bridge routes cluster traffic to the host).
 7. **Forwarded:** Backend makes HTTP POST to `llama-server` with OpenAI-compatible JSON.
 8. **Streaming:** llama-server returns Server-Sent Events (SSE); AIWB backend streams chunks back to the SPA via WebSocket or SSE.
 9. **Rendered:** SPA renders markdown, code blocks, and streaming text.
@@ -825,16 +844,16 @@ AIWB is the **entry point** and **exit point** of every user interaction. It is 
 
 ### Quick summary
 
-llama.cpp is a high-performance C/C++ LLM inference library by Georgi Gerganov (ggml-org). It implements a wide range of transformer architectures in GGUF format, with compute backends for CPU, CUDA, Metal, Vulkan, HIP, SYCL, and others. On this stack it is **the primary inference engine** — every token for the Gemma 4 model is produced by llama.cpp using the Vulkan backend (Mesa RADV), running as a long-lived systemd service exposing an OpenAI-compatible HTTP API on port 8080.
+llama.cpp is a high-performance C/C++ LLM inference library by Georgi Gerganov (ggml-org). It implements a wide range of transformer architectures in GGUF format, with compute backends for CPU, CUDA, Metal, Vulkan, HIP, SYCL, and others. On this stack it is **the primary inference engine** — every token for the Gemma 4 model is produced by llama.cpp using the HIP backend (ROCm, default since 2026-06-08) or Vulkan (Mesa RADV, fallback), running as a long-lived systemd service exposing an OpenAI-compatible HTTP API on port 8080.
 
 ### Detailed explanation
 
-**Why llama.cpp and why Vulkan**
+**Why llama.cpp — HIP default, Vulkan fallback**
 
 llama.cpp was chosen for this stack because:
 - It is the fastest path to running a quantised GGUF model on consumer hardware with minimal dependencies.
-- The Vulkan backend supports unified memory architectures well — weight buffers and KV cache are allocated in GPU-visible GTT memory without explicit CPU↔GPU copies.
-- **Critical:** The ROCm HIP backend in llama.cpp triggers an infinite decode loop on gfx1151 with Gemma 4's MoE router (tracked in [issue #21416](https://github.com/ggml-org/llama.cpp/issues/21416)). Vulkan is the only validated backend for this hardware+model pair.
+- Both HIP and Vulkan backends support unified memory architectures — weight buffers and KV cache are allocated in GPU-visible GTT memory without explicit CPU↔GPU copies.
+- The ROCm HIP backend with gfx1151 patches (G1–G3 in `gfx1151-rdna35-tuning`) is the **default and validated backend** as of 2026-06-08. The MoE router corruption bug ([#21416](https://github.com/ggml-org/llama.cpp/issues/21416)) is resolved by disabling fused topk-MoE on RDNA3_5. Validation results: Gemma 4 26B-A4B — 114 t/s prompt, 36 t/s gen, no router corruption. Vulkan (Mesa RADV) remains available as `EAI_LLAMA_BACKEND=vulkan`.
 
 **Build**
 
@@ -865,7 +884,7 @@ ExecStart=<build>/bin/llama-server \
 Restart=on-failure
 ```
 
-`--n-gpu-layers 999` offloads all layers to the Vulkan GPU backend. `--ctx-size 32768` sets the KV cache window. `--jinja` enables the Jinja2 chat template engine for proper Gemma 4 turn formatting.
+`--n-gpu-layers 999` offloads all layers to the GPU backend (HIP or Vulkan, determined by which binary is launched). `--ctx-size 32768` sets the KV cache window. `--jinja` enables the Jinja2 chat template engine for proper Gemma 4 turn formatting.
 
 **Token generation pipeline — detailed**
 
@@ -892,29 +911,24 @@ POST /v1/chat/completions
     │    ├─ FFN: MoE router (top-4 of 8 experts for Gemma 4-A4B)
     │    └─ Expert matmuls (gate + up + down projections)
     └─ Final RMSNorm → lm_head projection → logits
-  Backend scheduler assigns tensors → GGML_BACKEND_VULKAN
+  Backend scheduler assigns tensors → GGML_BACKEND_HIP (default) or GGML_BACKEND_VULKAN (fallback)
         │
-        ▼ ggml/src/ggml-vulkan/ggml-vulkan.cpp
-  Encode compute command buffers (SPIR-V pipelines per op type)
-  vkQueueSubmit(computeQueue, cmdBuf[])
+        ▼ HIP path (default): ggml/src/ggml-cuda/  [Vulkan path: ggml/src/ggml-vulkan/]
+  HIP: hipLaunchKernel → ROCclr → KFD ioctl → gfx1151 GFX ring
+  Vulkan: vkQueueSubmit → Mesa RADV → DRM ioctl → gfx1151 GFX ring
         │
-        ▼ Mesa RADV (libvulkan_radeon.so)
-  Translate Vulkan commands → DRM ioctl
-  vkWaitForFences() blocks until GPU signals completion
-        │
-        ▼ amdgpu DRM (kernel)
+        ▼ amdgpu kernel (KFD or DRM)
   Allocate/pin buffer objects in GTT pool
   Submit IBs to GFX ring
   Raise completion interrupt
         │
         ▼ Radeon 8060S — gfx1151
   Execute WMMA/vector ALU for matmul
-  MoE expert routing in shader
+  MoE expert routing in shader (unfused on RDNA3_5 — G3 fix)
   Unified LPDDR5x for weights + KV cache
         │
         ▲ (return path)
-  Completion interrupt → DRM fence
-  RADV fence → Vulkan fence signalled
+  Completion interrupt → KFD/DRM fence signal
   ggml: tensor results in mapped memory
   llama.cpp: logits → temperature / top-p sampler → next token id
   Detokenize → UTF-8 piece
@@ -1097,15 +1111,38 @@ response token
 
 ## Appendix: Quick reference — ports, URLs, and credentials
 
-| Service | URL | Default credentials |
-|---------|-----|---------------------|
-| AI Workbench | `https://aiwbui.<IP>.nip.io` | Keycloak `silogen-admin` |
-| AIRM | `https://airmui.<IP>.nip.io` | Keycloak `silogen-admin` |
-| Keycloak | `https://keycloak.<IP>.nip.io` | set at bootstrap |
-| Gitea | `https://gitea.<IP>.nip.io` | set at bootstrap |
-| ArgoCD | `kubectl port-forward svc/argocd-server -n argocd 8443:443` | |
+| Service | URL | Username |
+|---------|-----|----------|
+| AI Workbench | `https://aiwbui.<IP>.nip.io` | `devuser@<IP>.nip.io` |
+| AIRM | `https://airmui.<IP>.nip.io` | `devuser@<IP>.nip.io` |
+| Keycloak admin | `https://kc.<IP>.nip.io` (Bloom) or `https://keycloak.<IP>.nip.io` (k3s) | `silogen-admin` |
+| Gitea | `https://gitea.<IP>.nip.io` | `gitea_admin` |
+| ArgoCD | `https://argocd.<IP>.nip.io` (Bloom) or port-forward `8443:443` (k3s) | `admin` |
+| OpenBao | `https://openbao.<IP>.nip.io` | root token |
 | llama-server | `http://<node-IP>:8080` | no auth (host-only) |
-| Local registry | `http://localhost:32000` | no auth |
+| Local registry | `http://localhost:32000` | no auth (k3s path only) |
+
+**Retrieve passwords** — Kubernetes secrets are base64-encoded. `kubectl get secret <name>` shows metadata only; decode a specific key:
+
+```bash
+# DevUser (AIWB + AIRM) — use "Sign in with Keycloak" in the browser
+kubectl -n keycloak get secret airm-realm-credentials \
+  -o jsonpath='{.data.KEYCLOAK_INITIAL_DEVUSER_PASSWORD}' | base64 --decode && echo
+
+# Keycloak admin (silogen-admin)
+kubectl -n keycloak get secret keycloak-credentials \
+  -o jsonpath='{.data.KEYCLOAK_INITIAL_ADMIN_PASSWORD}' | base64 --decode && echo
+
+# ArgoCD admin
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 --decode && echo
+
+# Gitea admin
+kubectl -n gitea get secret gitea-admin-credentials \
+  -o jsonpath='{.data.password}' | base64 --decode && echo
+```
+
+See [BLOOM_GFX1151_INSTALL.md — Retrieve credentials](BLOOM_GFX1151_INSTALL.md#retrieve-credentials) for the full list.
 
 ## Appendix: Script execution order
 

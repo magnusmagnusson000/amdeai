@@ -249,10 +249,9 @@ bash scripts/validate-hip-gfx1151.sh
 | Keycloak | `https://kc.<IP>.nip.io` |
 | ArgoCD | `https://argocd.<IP>.nip.io` |
 | OpenBao | `https://openbao.<IP>.nip.io` |
+| Gitea | `https://gitea.<IP>.nip.io` |
 
-Default admin: `silogen-admin` (password set at bootstrap).
-
-Set Hugging Face token in Workbench UI secrets for model catalog features.
+See [Retrieve credentials](#retrieve-credentials) below for login commands. Set Hugging Face token in Workbench UI secrets for model catalog features.
 
 ---
 
@@ -320,6 +319,7 @@ The scripted k3s path in [README.md](../README.md) remains available for lab/deb
 | `airm` / `aiwb` ArgoCD Applications missing | `cluster-forge` parent sync failed while DNS was broken | After DNS fix: `helm template cluster-forge ... \| kubectl apply -f -` (see ClusterForge clone under `.bloom/clusterforge/`) or hard-refresh `cluster-forge` Application |
 | Keycloak `OOMKilled` on Z13 | Default memory limits too low for laptop | Increase Keycloak deployment memory request/limit (e.g. 4Gi) or close other workloads; wait for sync to settle |
 | HTTPS URLs `connection refused` from browser | envoy-gateway Gateway not programmed / MetalLB / GitOps still syncing | Wait 30–60 min after bootstrap; `kubectl get gateway -n envoy-gateway-system`; ensure MetalLB Application is Synced |
+| HTTPS returns **403** or login page never loads | UI pods **Pending** — node has `disk-pressure` taint | Check `kubectl describe node \| grep -E Taints\|DiskPressure` and `df -h /`. Free disk (often Docker build cache: `docker builder prune -a -f && docker system prune -a -f`). Restart RKE2 if taint persists: `sudo systemctl restart rke2-server`. Wait for `keycloak`, `aiwb-ui`, `airm-ui` pods Running, then re-run E2E |
 
 ---
 
@@ -340,6 +340,10 @@ Full Enterprise AI stack validated after phased Bloom install, GitOps workaround
 | 7 | AIWB HTTPRoute `parentRefs.namespace` → `envoy-gateway-system` | Chart defaulted to deprecated `kgateway-system` |
 | 8 | CoreDNS: domain-scoped rewrite only | Removed broken `.*\.` rule from empty-domain sync |
 | 9 | E2E tests: Keycloak OIDC flow (`Sign in with Keycloak` → `devuser@domain`) | NextAuth redirect differs from direct form login |
+
+### Re-validation (2026-06-09)
+
+URLs failed with HTTP **403** because the node accumulated a `node.kubernetes.io/disk-pressure` taint (root FS at 93% — mostly Docker build cache under `/var/lib/docker`). After `docker builder prune -a -f` (~95 GB) + `docker system prune -a -f` (~78 GB) and `sudo systemctl restart rke2-server`, Playwright E2E **3/3 PASS** again.
 
 ### Final check results
 
@@ -379,14 +383,83 @@ E2E_AIWB=1 E2E_AIRM=1 .venv-e2e/bin/pytest tests/e2e/test_aiwb_ui.py tests/e2e/t
 
 ### Service endpoints (Z13)
 
-| Service | URL | Login |
-|---------|-----|-------|
+| Service | URL | Username |
+|---------|-----|----------|
 | AI Workbench | `https://aiwbui.192.168.32.13.nip.io` | `devuser@192.168.32.13.nip.io` |
-| AIRM | `https://airmui.192.168.32.13.nip.io` | same password as AIWB |
+| AIRM | `https://airmui.192.168.32.13.nip.io` | `devuser@192.168.32.13.nip.io` |
 | Keycloak admin | `https://kc.192.168.32.13.nip.io` | `silogen-admin` |
 | ArgoCD | `https://argocd.192.168.32.13.nip.io` | `admin` |
+| Gitea | `https://gitea.192.168.32.13.nip.io` | `gitea_admin` |
+| OpenBao | `https://openbao.192.168.32.13.nip.io` | root token (see below) |
 
-Passwords: see Bloom post-install banner or `kubectl -n keycloak get secret airm-realm-credentials`.
+Passwords: [Retrieve credentials](#retrieve-credentials).
+
+---
+
+## Retrieve credentials
+
+Kubernetes secrets store values **base64-encoded**. `kubectl get secret <name>` only shows metadata (name, type, key count) — it does **not** print passwords. Use `jsonpath` + `base64 --decode` on the specific key.
+
+Set your domain once (matches `DOMAIN` in `bloom-gfx1151.yaml`):
+
+```bash
+NODE_IP=$(hostname -I | awk '{print $1}')
+DOMAIN="${NODE_IP}.nip.io"
+```
+
+### AI Workbench + AIRM (DevUser)
+
+Both UIs use Keycloak SSO. Click **Sign in with Keycloak**, then log in as `devuser@<domain>`.
+
+```bash
+# Username
+echo "devuser@${DOMAIN}"
+
+# Password
+kubectl -n keycloak get secret airm-realm-credentials \
+  -o jsonpath='{.data.KEYCLOAK_INITIAL_DEVUSER_PASSWORD}' | base64 --decode && echo
+```
+
+### Keycloak admin
+
+```bash
+# Username: silogen-admin
+kubectl -n keycloak get secret keycloak-credentials \
+  -o jsonpath='{.data.KEYCLOAK_INITIAL_ADMIN_PASSWORD}' | base64 --decode && echo
+```
+
+### ArgoCD admin
+
+```bash
+# Username: admin
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 --decode && echo
+```
+
+### Gitea admin
+
+```bash
+# Username: gitea_admin
+kubectl -n gitea get secret gitea-admin-credentials \
+  -o jsonpath='{.data.password}' | base64 --decode && echo
+```
+
+### OpenBao root token
+
+```bash
+kubectl -n openbao get secret openbao-root-token \
+  -o jsonpath='{.data.token}' | base64 --decode && echo
+```
+
+### List secret keys (without decoding)
+
+```bash
+kubectl -n keycloak get secret airm-realm-credentials -o json | jq -r '.data | keys[]'
+```
+
+Common keys in `airm-realm-credentials`: `KEYCLOAK_INITIAL_DEVUSER_PASSWORD`, `ADMIN_CLIENT_SECRET`, `ARGOCD_CLIENT_SECRET`, `GITEA_CLIENT_SECRET`, etc. (client secrets for service integration — not UI login passwords).
+
+Bloom also prints these commands in the post-install banner after a successful `bloom cli` run.
 
 Cluster-bloom build checks (`feat/gfx1151-support`):
 

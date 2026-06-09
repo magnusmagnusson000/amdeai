@@ -3,7 +3,7 @@
 This document describes **two inference paths** on the Z13 gfx1151 stack:
 
 1. **Standard EAI path** — ROCm HIP via Kaiwo + vLLM (cluster GPU pods)
-2. **Local host path** — llama.cpp on the node (Vulkan for Gemma 4; HIP for SLMs after gfx1151 patches)
+2. **Local host path** — llama.cpp on the node (HIP default, validated 2026-06-08 for Gemma 4 + SLMs; Vulkan as fallback)
 
 See also: [gfx1151-upstream-pr-guide.md](gfx1151-upstream-pr-guide.md) for source patches and upstream PR instructions.
 
@@ -69,9 +69,9 @@ sequenceDiagram
 | Scenario | Backend | Notes |
 |----------|---------|-------|
 | Cluster vLLM / PyTorch job | ROCm HIP | Standard EAI path; env vars in GPU plugin |
-| Local Gemma 4 26B-A4B | **Vulkan** (default) | HIP MoE bug [#21416](https://github.com/ggml-org/llama.cpp/issues/21416); use `EAI_LLAMA_BACKEND=vulkan` |
-| Local SLM (Qwen3-0.6B, phi-4-mini) | HIP (after patches) | Branch `gfx1151-rdna35-tuning`; `EAI_LLAMA_BACKEND=hip` |
-| Local Gemma 4 after G1–G3 patches | HIP (test) | Re-test with unfused MoE path |
+| Local Gemma 4 26B-A4B | **HIP** (default) | G1–G3 patches validated 2026-06-08: 114 t/s, no router corruption |
+| Local SLM (Qwen3-0.6B, phi-4-mini) | **HIP** (default) | Branch `gfx1151-rdna35-tuning`; 297 t/s (phi-4-mini) |
+| Local inference fallback | Vulkan | `EAI_LLAMA_BACKEND=vulkan`; Mesa RADV, no ROCm dependency |
 
 ## Layer summary
 

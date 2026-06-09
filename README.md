@@ -1,9 +1,9 @@
 # AMD Enterprise AI Suite — Z13 (amdeai)
 
-Automation, documentation, and tests for the [AMD Enterprise AI Suite](eai-suite-z13-guide.md) on Asus Z13 (Radeon 8060S, **gfx1151**, 128 GB RAM, Ubuntu 24.04).
+Automation, documentation, and tests for the [AMD Enterprise AI Suite](docs/OVERVIEW.md) on Asus Z13 (Radeon 8060S, **gfx1151**, 128 GB RAM, Ubuntu 24.04).
 
 **Standard inference path:** ROCm HIP in Kubernetes (Kaiwo → vLLM → gfx1151)  
-**Local Workbench chat:** llama.cpp on host port 8080 (Vulkan for Gemma 4; HIP for SLMs)  
+**Local Workbench chat:** llama.cpp on host port 8080 (HIP validated 2026-06-08; Vulkan as fallback)  
 **gfx1151 patches:** [docs/gfx1151-upstream-pr-guide.md](docs/gfx1151-upstream-pr-guide.md)
 
 ---
@@ -26,6 +26,8 @@ sudo ./bloom cli bloom-gfx1151.yaml
 **Config:** [bloom-gfx1151.yaml](bloom-gfx1151.yaml) (`GPU_GFX1151: true`)
 
 Optional after Bloom: `bash scripts/07-llama-cpp.sh` for local Workbench chat via host `llama-server`.
+
+**Login:** AIWB and AIRM use `devuser@<IP>.nip.io` via Keycloak SSO. See [Retrieve credentials](docs/BLOOM_GFX1151_INSTALL.md#retrieve-credentials) for password commands.
 
 ---
 
@@ -179,27 +181,39 @@ bash scripts/06b-airm-workbench.sh
 
 **URLs** (replace `<IP>` with node IP, e.g. from `hostname -I`):
 
-| Service | URL |
-|---------|-----|
-| AI Workbench | `https://aiwbui.<IP>.nip.io` |
-| AIRM | `https://airmui.<IP>.nip.io` |
-| Keycloak | `https://keycloak.<IP>.nip.io` |
+| Service | URL | Username |
+|---------|-----|----------|
+| AI Workbench | `https://aiwbui.<IP>.nip.io` | `devuser@<IP>.nip.io` |
+| AIRM | `https://airmui.<IP>.nip.io` | `devuser@<IP>.nip.io` |
+| Keycloak admin | `https://kc.<IP>.nip.io` | `silogen-admin` |
 
-Default user: `silogen-admin` (password set at bootstrap).
+**Passwords** — secrets are base64-encoded; `kubectl get secret` alone does not show values:
+
+```bash
+# DevUser (AIWB + AIRM) — click "Sign in with Keycloak" in the UI
+kubectl -n keycloak get secret airm-realm-credentials \
+  -o jsonpath='{.data.KEYCLOAK_INITIAL_DEVUSER_PASSWORD}' | base64 --decode && echo
+
+# Keycloak admin
+kubectl -n keycloak get secret keycloak-credentials \
+  -o jsonpath='{.data.KEYCLOAK_INITIAL_ADMIN_PASSWORD}' | base64 --decode && echo
+```
+
+Full credential reference: [docs/BLOOM_GFX1151_INSTALL.md — Retrieve credentials](docs/BLOOM_GFX1151_INSTALL.md#retrieve-credentials).
 
 ### Step 7 — llama.cpp (`07-llama-cpp.sh`)
 
 Builds llama.cpp from `~/eai-build/llama.cpp` (branch **`gfx1151-rdna35-tuning`**), starts systemd user service, registers AIMModel.
 
 ```bash
-# Default: Vulkan backend for Gemma 4
+# Default: HIP backend (validated 2026-06-08 — Gemma 4 + SLMs)
 bash scripts/07-llama-cpp.sh
 
-# Also build HIP binary (for SLM testing)
-EAI_LLAMA_BUILD_HIP=1 bash scripts/07-llama-cpp.sh
+# Force Vulkan fallback (Mesa RADV, no ROCm dependency)
+EAI_LLAMA_BACKEND=vulkan bash scripts/07-llama-cpp.sh
 
-# Use HIP backend for llama-server (after validating SLMs)
-EAI_LLAMA_BACKEND=hip bash scripts/07-llama-cpp.sh
+# Skip HIP binary build (Vulkan-only install)
+EAI_LLAMA_BUILD_HIP=0 EAI_LLAMA_BACKEND=vulkan bash scripts/07-llama-cpp.sh
 ```
 
 Place Gemma GGUF at `~/models/gemma-4-26b-a4b-it-Q4_K_M.gguf` or set `MODEL_PATH=...`.
@@ -330,64 +344,19 @@ pytest tests/e2e -v
 **Call flow:** [docs/call-flows/06a-aim-engine.md](docs/call-flows/06a-aim-engine.md)  
 **Deep-dive:** [docs/AIM_ENGINE_DEEP_DIVE.md](docs/AIM_ENGINE_DEEP_DIVE.md)
 
-#### Registering a local model endpoint (host llama-server)
+#### Gemma 4 31B (local GGUF + AIMModel on gfx1151)
 
-AIM Engine v0.2.x no longer accepts `spec.endpoint`/`displayName`/`capabilities` on `AIMModel`. The pattern used by this repo is:
-
-1. **Service + Endpoints** — bridge the cluster to the host `llama-server` port:
+Uses existing GGUF weights only — no Hugging Face download:
 
 ```bash
-MY_IP=$(hostname -I | awk '{print $1}')
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-model-local
-  namespace: default
-spec:
-  ports:
-  - name: http
-    port: 8081
-    targetPort: 8081
----
-apiVersion: v1
-kind: Endpoints
-metadata:
-  name: my-model-local
-  namespace: default
-subsets:
-- addresses:
-  - ip: ${MY_IP}
-  ports:
-  - name: http
-    port: 8081
-EOF
+EAI_LLAMA_BACKEND=hip bash scripts/08-gemma4-31b.sh
 ```
 
-2. **AIMModel catalog stub** — with discovery disabled and annotations for display metadata:
+See [docs/call-flows/08-gemma4-31b.md](docs/call-flows/08-gemma4-31b.md) and [docs/AIM_ENGINE_DEEP_DIVE.md](docs/AIM_ENGINE_DEEP_DIVE.md) §11.
 
-```bash
-kubectl apply -f - <<EOF
-apiVersion: aim.eai.amd.com/v1alpha1
-kind: AIMModel
-metadata:
-  name: my-model-local
-  namespace: default
-  annotations:
-    aim.eai.amd.com/external-endpoint: "http://${MY_IP}:8081"
-    aim.eai.amd.com/display-name: "My Model (local GGUF)"
-    aim.eai.amd.com/model-id: "my-model"
-spec:
-  image: amdenterpriseai/aim-base:0.11.0
-  discovery:
-    extractMetadata: false
-    createServiceTemplates: false
-EOF
-```
+#### Register a local host endpoint (AIMModel pattern)
 
-The `AIMModel` becomes `Ready` immediately (no discovery job, no pod spawn). AIWB resolves the endpoint via the `Service` name within the cluster. See `scripts/07-llama-cpp.sh` (port 8080) and `scripts/08-gemma4-31b.sh` (port 8081) for the working examples.
-
-For the fully-managed in-cluster path (GPU pod + model download), see [docs/AIM_ENGINE_DEEP_DIVE.md](docs/AIM_ENGINE_DEEP_DIVE.md).
+AIM Engine v0.2.x removed `spec.endpoint` on `AIMModel`. For ad-hoc host registration without a managed `AIMService`, use Service + Endpoints + catalog stub — see [docs/AIM_ENGINE_DEEP_DIVE.md](docs/AIM_ENGINE_DEEP_DIVE.md) §8.4.
 
 ### AIRM + AI Workbench
 

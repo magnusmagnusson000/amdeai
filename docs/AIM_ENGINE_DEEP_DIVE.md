@@ -12,9 +12,9 @@
 
 AIM Engine (AMD Inference Microservices Engine) is a Kubernetes operator that manages the full lifecycle of AI inference workloads on AMD hardware. It sits at Layer 6 of the Enterprise AI stack, between workload orchestration (Kaiwo/Kueue) and the user-facing UI (AI Workbench).
 
-Its job is to bridge the gap between a model artifact and a production-ready inference HTTP endpoint. You give it an AIM container image; it handles model discovery, weight downloading, KServe InferenceService creation, Gateway API routing, and autoscaling.
+Its job is to bridge the gap between a model artifact and a production-ready inference HTTP endpoint. For managed MI-series cluster deployments it handles model discovery, weight downloading, KServe InferenceService creation, Gateway API routing, and autoscaling. On this Z13/gfx1151 machine the primary role is **external endpoint registration**: `AIMModel` CRs with `aim.eai.amd.com/external-endpoint` annotations expose the host `llama-server` in the AI Workbench catalog without spawning any pods.
 
-The operator watches a set of Custom Resource Definitions (CRDs). Users declare *what* they want (model + service configuration); the operator figures out *how* to run it.
+The operator watches a set of Custom Resource Definitions (CRDs). Users declare *what* they want; the operator figures out *how* to run it.
 
 ---
 
@@ -238,9 +238,11 @@ Full list: `~/eai-build/cluster-forge/sources/aim-cluster-model-source/aim-model
 
 ## 8. Deployment Patterns
 
-### 8.1 Managed in-cluster service (standard path)
+> **Z13 / gfx1151 note:** On this machine the primary pattern is **§8.4 (external endpoint)**. Patterns §8.1–8.3 download weights from Hugging Face (70 GB+ for Gemma 4) and are not appropriate for this disk budget. Use `scripts/07-llama-cpp.sh` (26B) or `scripts/08-gemma4-31b.sh` (31B).
 
-Requires: GPU nodes, KServe, Gateway API, ReadWriteMany storage.
+### 8.1 Managed in-cluster service (upstream path — MI-series clusters)
+
+Requires: GPU nodes with AIM accelerator labels, KServe, Gateway API, ReadWriteMany storage.
 
 ```yaml
 # Step 1: Ensure model is in catalog (via AIMClusterModelSource or manual)
@@ -372,7 +374,7 @@ The AIMModel becomes `Ready` immediately. No pods spawned. AIWB resolves the end
 
 ## 9. Gateway Routing
 
-When `AIMClusterRuntimeConfig.spec.routing.enabled: true`, the operator creates an `HTTPRoute` for every `AIMService`. This cluster's runtime config (`aiwb` namespace):
+When `AIMClusterRuntimeConfig.spec.routing.enabled: true`, the operator creates an `HTTPRoute` for every `AIMService`. On the Bloom-installed RKE2 stack the gateway lives in `envoy-gateway-system`:
 
 ```yaml
 spec:
@@ -381,7 +383,7 @@ spec:
     gatewayRef:
       kind: Gateway
       name: https
-      namespace: kgateway-system
+      namespace: envoy-gateway-system
     pathTemplate: '{.metadata.namespace}/{.metadata.labels[''airm.silogen.ai/workload-id'']}'
     requestTimeout: 30m
 ```
@@ -419,16 +421,26 @@ KEDA creates a `ScaledObject` → manages an HPA → scales the KServe deploymen
 
 ---
 
-## 11. gfx1151 (Strix Halo) Limitations
+## 11. gfx1151 (Strix Halo) — Gemma 4 31B
 
-| Limitation | Detail |
-|------------|--------|
-| No official AIM container for Gemma 4 | `aim-models-0.11.0.yaml` only has `aim-google-gemma-3-27b-it`; no Gemma 4 image |
-| AcceleratorDetector does not label gfx1151 | Targets MI-series Instinct GPUs only; gfx1151 is RDNA 3.5 APU |
-| Managed AIMService path blocked | Requires KServe template selection to match gfx1151; no profiles for this GPU in catalog |
-| **Workaround** | Host `llama-server` + Service/Endpoints + AIMModel stub (see §8.4 above, `scripts/07-llama-cpp.sh`, `scripts/08-gemma4-31b.sh`) |
+On this host, Gemma 4 31B uses **one local GGUF** (~19 GiB) via host llama-server — not a managed `AIMService` HF download (~70 GiB).
 
-When AMD releases `amdenterpriseai/aim-google-gemma-4-31b-it`, add it to `aim-models-0.11.0.yaml` under `filters` and bump the `AIMClusterModelSource` name to trigger re-sync.
+| Topic | Approach |
+|-------|----------|
+| Weights | Existing `~/models/gemma-4-31b-it-Q4_K_M.gguf` (symlink OK) |
+| Inference | `llama-gemma-31b.service` on host `:8081` (HIP on gfx1151) |
+| AIM registration | `AIMModel` `gemma-4-31b-local` + Service/Endpoints bridge (§8.4) |
+| Disk guard | `check_disk_before_step` in `scripts/08-gemma4-31b.sh` |
+
+Deploy:
+
+```bash
+EAI_LLAMA_BACKEND=hip bash scripts/08-gemma4-31b.sh
+```
+
+Do **not** apply `AIMClusterProfile` / `AIMService` manifests with `sourceUri: hf://google/gemma-4-31b-it` on this machine — that duplicates weights and can fill the root filesystem.
+
+When AMD releases `amdenterpriseai/aim-google-gemma-4-31b-it`, add it to [`clusterforge/cluster-forge/sources/aim-cluster-model-source/aim-models-0.11.0.yaml`](../clusterforge/cluster-forge/sources/aim-cluster-model-source/aim-models-0.11.0.yaml) for a separate managed path if desired.
 
 ---
 
@@ -436,7 +448,7 @@ When AMD releases `amdenterpriseai/aim-google-gemma-4-31b-it`, add it to `aim-mo
 
 ### Cluster Bloom path (primary)
 
-Bloom installs AIM Engine via ArgoCD from `~/eai-build/cluster-forge/sources/aim-engine/0.2.2/` and CRDs from `sources/aim-engine-crds/0.2.2/`.
+Bloom installs AIM Engine via ArgoCD from `~/eai-build/cluster-forge/sources/aim-engine/0.2.4/` and CRDs from `sources/aim-engine-crds/0.2.4/`.
 
 ### k3s script path
 

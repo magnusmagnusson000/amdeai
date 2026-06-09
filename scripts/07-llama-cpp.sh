@@ -11,7 +11,7 @@ export MY_IP=$(my_ip)
 MODEL_PATH="${MODEL_PATH:-$HOME/models/gemma-4-26b-a4b-it-Q4_K_M.gguf}"
 EAI_LLAMA_CPP_DIR="${EAI_LLAMA_CPP_DIR:-$EAI_BUILD_DIR/llama.cpp}"
 EAI_LLAMA_CPP_BRANCH="${EAI_LLAMA_CPP_BRANCH:-gfx1151-rdna35-tuning}"
-EAI_LLAMA_BACKEND="${EAI_LLAMA_BACKEND:-vulkan}"   # vulkan | hip
+EAI_LLAMA_BACKEND="${EAI_LLAMA_BACKEND:-hip}"       # hip | vulkan (HIP validated 2026-06-08)
 EAI_LLAMA_BUILD_HIP="${EAI_LLAMA_BUILD_HIP:-1}"     # also build HIP binary when 1
 
 echo "=== 07-llama-cpp (EAI_FORCE_REBUILD=${EAI_FORCE_REBUILD}) ==="
@@ -107,22 +107,61 @@ EOF
   sleep 5
   curl -sf http://localhost:8080/health && echo " llama-server healthy (${EAI_LLAMA_BACKEND})"
 
-  kubectl delete aimmodel gemma-4-26b-a4b-local --ignore-not-found
+  # AIM registration: Service/Endpoints bridge + catalog AIMModel (spec.endpoint removed in v0.2.x)
+  kubectl apply -f - << EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: gemma-4-26b-a4b-local
+  namespace: default
+  labels:
+    app: gemma-4-26b-a4b-local
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: gemma-4-26b-a4b-local
+  namespace: default
+subsets:
+- addresses:
+  - ip: ${MY_IP}
+  ports:
+  - name: http
+    port: 8080
+EOF
+
   kubectl apply -f - << EOF
 apiVersion: aim.eai.amd.com/v1alpha1
 kind: AIMModel
 metadata:
   name: gemma-4-26b-a4b-local
   namespace: default
+  annotations:
+    aim.eai.amd.com/external-endpoint: "http://${MY_IP}:8080"
+    aim.eai.amd.com/display-name: "Gemma 4 26B-A4B (local Q4_K_M)"
+    aim.eai.amd.com/model-id: "gemma-4"
 spec:
-  displayName: "Gemma 4 26B-A4B (local Q4_K_M)"
-  endpoint:
-    url: "http://${MY_IP}:8080"
-    type: OpenAI
-  modelId: "gemma-4"
-  capabilities:
-    - chat
-    - vision
+  image: amdenterpriseai/aim-base:0.9
+  discovery:
+    extractMetadata: false
+    createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: docker.io/amdenterpriseai/aim-base:0.9
+    model:
+      canonicalName: google/gemma-4-26b-a4b
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - vision
+      descriptionFull: >
+        Gemma 4 26B-A4B instruction-tuned MoE model served from local GGUF weights
+        on gfx1151 (Strix Halo) via host llama-server.
 EOF
 else
   echo "Model not at ${MODEL_PATH} — binaries built; start server manually."

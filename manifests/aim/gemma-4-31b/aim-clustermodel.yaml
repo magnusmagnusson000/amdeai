@@ -1,0 +1,44 @@
+# Gemma 4 31B catalog metadata (reference only — not deployed by scripts/08-gemma4-31b.sh).
+#
+# The gfx1151 path uses local GGUF weights via host llama-server + AIMModel
+# (see scripts/08-gemma4-31b.sh). Do not apply aim-service or cluster profiles
+# with hf:// modelSources here — that triggers a ~70 GiB Hugging Face download.
+#
+# When AMD publishes amdenterpriseai/aim-google-gemma-4-31b-it, add it to
+# clusterforge/.../aim-models-0.11.0.yaml instead of using this stub.
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterModel
+metadata:
+  name: google-gemma-4-31b-it
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+  annotations:
+    aim.eai.amd.com/source-registry: docker.io
+    aim.eai.amd.com/source-repository: amdenterpriseai/aim-google-gemma-4-31b-it
+    aim.eai.amd.com/source-tag: "0.11-gfx1151"
+spec:
+  image: amdenterpriseai/aim-base:0.9
+  discovery:
+    extractMetadata: false
+    createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: docker.io/amdenterpriseai/aim-base:0.9
+    model:
+      canonicalName: google/gemma-4-31b-it
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - instruction
+      descriptionFull: >
+        Gemma 4 31B instruction-tuned dense model. On gfx1151 this repo serves
+        the existing local GGUF via host llama-server until AMD publishes an
+        official amdenterpriseai/aim-google-gemma-4-31b-it image.
+      recommendedDeployments:
+        - gpuModel: R9700
+          gpuCount: 1
+          precision: bf16
+          metric: latency
+          profileId: vllm-r9700-bf16-tp1-latency
+          description: Reference profile for future managed deployment
