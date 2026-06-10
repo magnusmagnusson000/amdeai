@@ -11,10 +11,11 @@ GEMMA31_MODEL_PATH="${GEMMA31_MODEL_PATH:-$HOME/models/gemma-4-31b-it-Q4_K_M.ggu
 EAI_LLAMA_CPP_DIR="${EAI_LLAMA_CPP_DIR:-$EAI_BUILD_DIR/llama.cpp}"
 EAI_LLAMA_BACKEND="${EAI_LLAMA_BACKEND:-hip}"
 LLAMA_PORT="${LLAMA31_PORT:-8081}"
+AIM_NAMESPACE="${AIM_NAMESPACE:-demo}"
 AIM_MODEL_NAME="${AIM_MODEL_NAME:-gemma-4-31b-local}"
 AIM_SERVICE_NAME="${AIM_SERVICE_NAME:-gemma-4-31b-chat}"
 
-echo "=== 08-gemma4-31b (local GGUF + AIMModel) ==="
+echo "=== 08-gemma4-31b (local GGUF + AIMModel, namespace=${AIM_NAMESPACE}) ==="
 
 if [[ ! -f "$GEMMA31_MODEL_PATH" ]]; then
   echo "ERROR: model not found at $GEMMA31_MODEL_PATH"
@@ -26,17 +27,18 @@ echo "Model GGUF: $GEMMA31_MODEL_PATH ($MODEL_SIZE, no HF download)"
 
 teardown_managed_hf_gemma() {
   echo "Removing managed HF Gemma 31B resources (if any)..."
-  kubectl delete aimservice "$AIM_SERVICE_NAME" -n default --ignore-not-found --wait=false 2>/dev/null || true
+  for ns in "$AIM_NAMESPACE" default; do
+    kubectl delete aimservice "$AIM_SERVICE_NAME" -n "$ns" --ignore-not-found --wait=false 2>/dev/null || true
+    while IFS= read -r name; do
+      [[ -n "$name" ]] || continue
+      kubectl delete "$name" -n "$ns" --ignore-not-found --wait=false 2>/dev/null || true
+    done < <(kubectl get aimartifact,aimprofilecache,inferenceservice -n "$ns" -o name 2>/dev/null | grep -i gemma || true)
+    if kubectl get pvc -n "$ns" -o name 2>/dev/null | grep -qi gemma; then
+      echo "WARN: HF Gemma PVC still present in ${ns} (delete manually if Kyverno allows):"
+      kubectl get pvc -n "$ns" 2>/dev/null | grep -i gemma || true
+    fi
+  done
   kubectl delete aimclusterprofile google-gemma-4-31b-r9700-latency --ignore-not-found --wait=false 2>/dev/null || true
-  while IFS= read -r name; do
-    [[ -n "$name" ]] || continue
-    kubectl delete "$name" -n default --ignore-not-found --wait=false 2>/dev/null || true
-  done < <(kubectl get aimartifact,aimprofilecache,inferenceservice -n default -o name 2>/dev/null | grep -i gemma || true)
-  # PVC may be blocked by Kyverno; warn but do not fail the local deploy path.
-  if kubectl get pvc -n default -o name 2>/dev/null | grep -qi gemma; then
-    echo "WARN: HF Gemma PVC still present (delete manually if Kyverno allows):"
-    kubectl get pvc -n default 2>/dev/null | grep -i gemma || true
-  fi
 }
 
 teardown_managed_hf_gemma
@@ -98,12 +100,17 @@ curl -sf "http://localhost:${LLAMA_PORT}/health" || {
 echo " llama-server healthy (${EAI_LLAMA_BACKEND})"
 
 # --- AIM registration: Service/Endpoints bridge + catalog AIMModel ---
+if [[ "$AIM_NAMESPACE" != "default" ]]; then
+  echo "Removing stale AIMModel registration from default (if any)..."
+  kubectl delete aimmodel,svc,endpoints "${AIM_MODEL_NAME}" -n default --ignore-not-found --wait=false 2>/dev/null || true
+fi
+
 kubectl apply -f - << EOF
 apiVersion: v1
 kind: Service
 metadata:
   name: ${AIM_MODEL_NAME}
-  namespace: default
+  namespace: ${AIM_NAMESPACE}
   labels:
     app: ${AIM_MODEL_NAME}
 spec:
@@ -116,7 +123,7 @@ apiVersion: v1
 kind: Endpoints
 metadata:
   name: ${AIM_MODEL_NAME}
-  namespace: default
+  namespace: ${AIM_NAMESPACE}
 subsets:
 - addresses:
   - ip: ${MY_IP}
@@ -130,7 +137,7 @@ apiVersion: aim.eai.amd.com/v1alpha1
 kind: AIMModel
 metadata:
   name: ${AIM_MODEL_NAME}
-  namespace: default
+  namespace: ${AIM_NAMESPACE}
   annotations:
     aim.eai.amd.com/external-endpoint: "http://${MY_IP}:${LLAMA_PORT}"
     aim.eai.amd.com/display-name: "Gemma 4 31B (local Q4_K_M)"
@@ -156,7 +163,7 @@ EOF
 
 echo "Waiting for AIMModel ${AIM_MODEL_NAME}..."
 for _ in $(seq 1 30); do
-  STATUS=$(kubectl get aimmodel "${AIM_MODEL_NAME}" -n default -o jsonpath='{.status.status}' 2>/dev/null || echo "")
+  STATUS=$(kubectl get aimmodel "${AIM_MODEL_NAME}" -n "${AIM_NAMESPACE}" -o jsonpath='{.status.status}' 2>/dev/null || echo "")
   if [[ "$STATUS" == "Ready" ]]; then
     echo " AIMModel Ready"
     break
@@ -164,12 +171,12 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 
-kubectl get aimmodel "${AIM_MODEL_NAME}" -n default -o wide 2>/dev/null || true
-kubectl get svc,endpoints "${AIM_MODEL_NAME}" -n default 2>/dev/null || true
+kubectl get aimmodel "${AIM_MODEL_NAME}" -n "${AIM_NAMESPACE}" -o wide 2>/dev/null || true
+kubectl get svc,endpoints "${AIM_MODEL_NAME}" -n "${AIM_NAMESPACE}" 2>/dev/null || true
 
 echo ""
 echo "Endpoint: http://${MY_IP}:${LLAMA_PORT}"
-echo "In-cluster: http://${AIM_MODEL_NAME}.default.svc.cluster.local:${LLAMA_PORT}"
-echo "AIMModel:   kubectl describe aimmodel ${AIM_MODEL_NAME} -n default"
+echo "In-cluster: http://${AIM_MODEL_NAME}.${AIM_NAMESPACE}.svc.cluster.local:${LLAMA_PORT}"
+echo "AIMModel:   kubectl describe aimmodel ${AIM_MODEL_NAME} -n ${AIM_NAMESPACE}"
 echo "Call flow:  $EAI_ROOT/docs/call-flows/08-gemma4-31b.md"
 disk_report "08-gemma4-31b-done"

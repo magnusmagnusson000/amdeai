@@ -1,0 +1,68 @@
+# EAI gfx1151 / Bloom RKE2 overrides for AMD telecom-assistant blueprint.
+# Chart: ~/eai-build/solution-blueprints/solution-blueprints/telecom-assistant
+# Adaptation rationale: docs/TELECOM_ASSISTANT_GFX1151_ADAPTATION.md
+
+# --- LLM: host llama-server Gemma 4 31B (demo namespace) replaces GPT OSS 120B ---
+llm:
+  existingService: "http://gemma-4-31b-local.demo.svc.cluster.local:8081"
+
+mainServices:
+  agent:
+    env:
+      LLM_MODEL: "gemma-4-31b"
+      LLM_API_KEY: "no-key-required"
+  frontend:
+    env:
+      # Overridden at deploy time (port-forward or Gateway wss://).
+      LIVEKIT_URL: "ws://localhost:7880"
+
+# --- Storage: Bloom cluster provides mlstorage (local-path provisioner) ---
+storage:
+  ephemeral:
+    storageClassName: mlstorage
+
+chromadb:
+  persistence:
+    storageClassName: mlstorage
+    size: 10Gi
+
+# --- Embedding: default infinity gfx942 image fails on gfx1151; run CPU ---
+embedding:
+  image: "michaelf34/infinity:latest"
+  gpus: 0
+  resources:
+    requests:
+      cpu: "2"
+      memory: "8Gi"
+    limits:
+      cpu: "4"
+      memory: "16Gi"
+
+# --- STT/TTS: generic ROCm vLLM sub-charts (not MI300 AIM images) ---
+# GPU is shared with host llama-server; see speech testing doc for voice workflow.
+stt:
+  memory:
+    requests: 16Gi
+    limits: 32Gi
+  cpu:
+    requests: "2"
+    limits: "4"
+
+tts:
+  # Single GPU: keep scaled to 0 until voice testing (see TELECOM_ASSISTANT_SPEECH_TESTING.md).
+  replicas: 0
+  resources:
+    requests:
+      cpu: "2"
+      memory: "8Gi"
+    limits:
+      cpu: "4"
+      memory: "16Gi"
+
+# --- Ingress: blueprint targets kgateway-system; we use Envoy + port-forward first ---
+http_route:
+  enabled: false
+
+# STUNner operator is cluster-scoped (install-prerequisites.sh); per-release gateway stays on.
+stunner:
+  enabled: true

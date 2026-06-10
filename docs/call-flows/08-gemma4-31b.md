@@ -36,21 +36,22 @@ Resources created:
 | Resource | Name | Role |
 |----------|------|------|
 | systemd user unit | `llama-gemma-31b.service` | Host inference from local GGUF |
-| `Service` + `Endpoints` | `gemma-4-31b-local` | Cluster → host bridge |
-| `AIMModel` | `gemma-4-31b-local` | AIM catalog entry (Ready) |
+| `Service` + `Endpoints` | `gemma-4-31b-local` (namespace `demo`) | Cluster → host bridge |
+| `AIMModel` | `gemma-4-31b-local` (namespace `demo`) | AIM catalog entry (Ready) |
 
-Optional override:
+Optional overrides:
 
 ```bash
 GEMMA31_MODEL_PATH=/path/to/model.gguf bash scripts/08-gemma4-31b.sh
+AIM_NAMESPACE=default bash scripts/08-gemma4-31b.sh   # register elsewhere
 ```
 
 ## Validate
 
 ```bash
 curl -sf http://localhost:8081/health
-kubectl get aimmodel gemma-4-31b-local -n default
-kubectl describe aimmodel gemma-4-31b-local -n default
+kubectl get aimmodel gemma-4-31b-local -n demo
+kubectl describe aimmodel gemma-4-31b-local -n demo
 curl -s http://localhost:8081/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"gemma-4-31b","messages":[{"role":"user","content":"Hi"}],"max_tokens":16}'

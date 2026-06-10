@@ -5,7 +5,21 @@ import base64
 import subprocess
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Page
+from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
+
+
+@pytest.fixture(scope="session")
+def browser() -> Browser:
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--use-fake-ui-for-media-stream",
+                "--use-fake-device-for-media-stream",
+            ],
+        )
+        yield browser
+        browser.close()
 
 
 @pytest.fixture(scope="session")
@@ -94,7 +108,10 @@ def keycloak_password() -> str | None:
 
 @pytest.fixture
 def browser_context(browser: Browser) -> BrowserContext:
-    ctx = browser.new_context(ignore_https_errors=True)
+    ctx = browser.new_context(
+        ignore_https_errors=True,
+        permissions=["microphone"],
+    )
     yield ctx
     ctx.close()
 
@@ -104,3 +121,8 @@ def page(browser_context: BrowserContext) -> Page:
     p = browser_context.new_page()
     yield p
     p.close()
+
+
+@pytest.fixture(scope="session")
+def telecom_namespace() -> str:
+    return __import__("os").environ.get("TELECOM_NAMESPACE", "telecom-assistant")
