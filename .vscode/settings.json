@@ -1,0 +1,7 @@
+{
+  "remote.SSH.remotePlatform": {
+    "ubuntu-lan": "linux",
+    "magnus@192.168.32.13": "linux",
+    "192.168.32.13": "linux"
+  }
+}

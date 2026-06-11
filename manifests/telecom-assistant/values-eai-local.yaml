@@ -12,9 +12,17 @@ mainServices:
       LLM_MODEL: "gemma-4-31b"
       LLM_API_KEY: "no-key-required"
   frontend:
+    image:
+      repository: telecom-frontend
+      tag: local
+    imagePullPolicy: Never
     env:
-      # Overridden at deploy time (port-forward or Gateway wss://).
+      # LIVEKIT_URL unused when proxy enabled; serverUrl derived from browser Host header.
+      LIVEKIT_PROXY_ENABLED: "1"
+      LIVEKIT_UPSTREAM: "http://eai-telecom-livekit:80"
       LIVEKIT_URL: "ws://localhost:7880"
+      GEMMA_WARMUP_URL: "http://gemma-4-31b-local.demo.svc.cluster.local:8081"
+      LLM_MODEL: "gemma-4-31b"
 
 # --- Storage: Bloom cluster provides mlstorage (local-path provisioner) ---
 storage:

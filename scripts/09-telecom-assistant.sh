@@ -42,20 +42,28 @@ helm dependency build
 kubectl create namespace "$TELECOM_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
 BUILD_CPU_SPEECH="${BUILD_CPU_SPEECH:-1}"
+CTR="sudo /var/lib/rancher/rke2/bin/ctr --address /run/k3s/containerd/containerd.sock --namespace k8s.io"
 if [[ "$BUILD_CPU_SPEECH" == "1" ]]; then
   echo "Building CPU STT/TTS images..."
   docker build -t telecom-stt-service:local "$EAI_ROOT/services/stt-service/"
   docker build -t telecom-tts-service:local "$EAI_ROOT/services/tts-service/"
 
   echo "Importing images into RKE2 containerd..."
-  CTR="sudo /var/lib/rancher/rke2/bin/ctr --address /run/k3s/containerd/containerd.sock --namespace k8s.io"
   docker save telecom-stt-service:local | $CTR images import -
   docker save telecom-tts-service:local | $CTR images import -
+fi
+
+BUILD_TELECOM_FRONTEND="${BUILD_TELECOM_FRONTEND:-1}"
+if [[ "$BUILD_TELECOM_FRONTEND" == "1" ]]; then
+  echo "Building patched frontend image (Gemma page-load warmup)..."
+  docker build -t telecom-frontend:local "$EAI_ROOT/services/telecom-frontend/"
+  docker save telecom-frontend:local | $CTR images import -
 fi
 
 echo "Deploying CPU STT/TTS services..."
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/stt-deployment.yaml" -n "$TELECOM_NAMESPACE"
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/tts-deployment.yaml" -n "$TELECOM_NAMESPACE"
+kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/gemma-warmup-cronjob.yaml" -n "$TELECOM_NAMESPACE"
 
 echo "Rendering and applying chart..."
 helm template "$TELECOM_RELEASE" . \
@@ -63,6 +71,9 @@ helm template "$TELECOM_RELEASE" . \
   -f "$VALUES_FILE" \
   --set "mainServices.frontend.env.LIVEKIT_URL=${FRONTEND_LIVEKIT_URL}" \
   | kubectl apply -f - -n "$TELECOM_NAMESPACE"
+
+echo "Patching agent with ConfigMap (LLM timeout, warmup, error handling)..."
+bash "$EAI_ROOT/scripts/patch-telecom-agent.sh"
 
 echo ""
 echo "Waiting for CPU speech services..."
@@ -77,6 +88,11 @@ kubectl wait --for=condition=available deployment \
   --timeout=600s 2>/dev/null || true
 
 kubectl get pods,svc -n "$TELECOM_NAMESPACE"
+
+echo ""
+echo "Warming up Gemma (host llama-server)..."
+GEMMA_URL="${GEMMA_URL:-http://localhost:8081}" bash "$EAI_ROOT/scripts/warmup-gemma.sh" || echo "WARN: Gemma warmup skipped (is llama-server running?)"
+
 echo ""
 echo "Port-forward (separate terminals):"
 echo "  kubectl port-forward svc/aimsb-telecom-assistant-${TELECOM_RELEASE}-frontend 3000:3000 -n ${TELECOM_NAMESPACE}"

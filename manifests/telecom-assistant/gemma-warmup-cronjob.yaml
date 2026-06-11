@@ -1,0 +1,39 @@
+# Keeps Gemma 4 hot between page loads (llama.cpp first-token latency).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gemma-warmup
+  labels:
+    app: gemma-warmup
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 180
+      template:
+        metadata:
+          labels:
+            app: gemma-warmup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: warmup
+              image: curlimages/curl:8.18.0
+              env:
+                - name: GEMMA_URL
+                  value: "http://gemma-4-31b-local.demo.svc.cluster.local:8081"
+                - name: GEMMA_MODEL
+                  value: "gemma-4-31b"
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  curl -sf "${GEMMA_URL}/health"
+                  curl -sf --max-time 120 -X POST "${GEMMA_URL}/v1/chat/completions" \
+                    -H "Content-Type: application/json" \
+                    -H "Authorization: Bearer no-key-required" \
+                    -d "{\"model\":\"${GEMMA_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
