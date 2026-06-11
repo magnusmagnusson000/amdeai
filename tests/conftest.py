@@ -3,9 +3,14 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+
+TESTS_DIR = Path(__file__).resolve().parent
+if str(TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(TESTS_DIR))
 
 EAI_BUILD = Path(os.environ.get("EAI_BUILD_DIR", Path.home() / "eai-build"))
 
@@ -40,7 +45,20 @@ def k8s_available() -> bool:
         return False
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def skip_without_k8s(k8s_available: bool):
     if not k8s_available:
         pytest.skip("Kubernetes cluster not available")
+
+
+@pytest.fixture(scope="session")
+def skip_without_telecom(skip_without_k8s):
+    namespace = os.environ.get("TELECOM_NAMESPACE", "telecom-assistant")
+    try:
+        subprocess.check_output(
+            ["kubectl", "get", "namespace", namespace],
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        pytest.skip(f"namespace {namespace} not found — run scripts/09-telecom-assistant.sh")

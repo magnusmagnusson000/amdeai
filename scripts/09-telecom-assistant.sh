@@ -41,6 +41,22 @@ helm dependency build
 
 kubectl create namespace "$TELECOM_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
+BUILD_CPU_SPEECH="${BUILD_CPU_SPEECH:-1}"
+if [[ "$BUILD_CPU_SPEECH" == "1" ]]; then
+  echo "Building CPU STT/TTS images..."
+  docker build -t telecom-stt-service:local "$EAI_ROOT/services/stt-service/"
+  docker build -t telecom-tts-service:local "$EAI_ROOT/services/tts-service/"
+
+  echo "Importing images into RKE2 containerd..."
+  CTR="sudo /var/lib/rancher/rke2/bin/ctr --address /run/k3s/containerd/containerd.sock --namespace k8s.io"
+  docker save telecom-stt-service:local | $CTR images import -
+  docker save telecom-tts-service:local | $CTR images import -
+fi
+
+echo "Deploying CPU STT/TTS services..."
+kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/stt-deployment.yaml" -n "$TELECOM_NAMESPACE"
+kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/tts-deployment.yaml" -n "$TELECOM_NAMESPACE"
+
 echo "Rendering and applying chart..."
 helm template "$TELECOM_RELEASE" . \
   --namespace "$TELECOM_NAMESPACE" \
@@ -48,10 +64,10 @@ helm template "$TELECOM_RELEASE" . \
   --set "mainServices.frontend.env.LIVEKIT_URL=${FRONTEND_LIVEKIT_URL}" \
   | kubectl apply -f - -n "$TELECOM_NAMESPACE"
 
-if [[ "${GFX1151_SINGLE_GPU:-1}" == "1" ]]; then
-  echo "Applying gfx1151 single-GPU agent init patch..."
-  bash "$EAI_ROOT/manifests/telecom-assistant/patch-agent-init-gfx1151.sh"
-fi
+echo ""
+echo "Waiting for CPU speech services..."
+kubectl rollout status deployment/telecom-stt -n "$TELECOM_NAMESPACE" --timeout=900s 2>/dev/null || true
+kubectl rollout status deployment/telecom-tts -n "$TELECOM_NAMESPACE" --timeout=900s 2>/dev/null || true
 
 echo ""
 echo "Waiting for core pods..."

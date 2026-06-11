@@ -1,6 +1,8 @@
 # Telecom Assistant — manual speech testing guide
 
-Automated Playwright tests cover UI, APIs, LiveKit signaling, and **text chat** via the Client Simulator. **Microphone STT and speaker TTS** require manual validation because gfx1151 has a single GPU shared between host Gemma (LLM) and in-cluster voice models.
+Automated Playwright tests cover UI, APIs, LiveKit signaling, and **text chat** via the Client Simulator. **Microphone STT and speaker TTS** require manual validation in the browser.
+
+STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`) and do not compete with host Gemma for the GPU.
 
 **Prerequisites doc:** [`TELECOM_ASSISTANT_GFX1151_ADAPTATION.md`](TELECOM_ASSISTANT_GFX1151_ADAPTATION.md)  
 **Deploy:** `bash scripts/09-telecom-assistant.sh`
@@ -17,46 +19,30 @@ kubectl get pods -n telecom-assistant
 
 Minimum for speech:
 
-| Pod prefix | Ready | Role |
-|------------|-------|------|
+| Pod / deployment | Ready | Role |
+|------------------|-------|------|
 | `eai-telecom-livekit` | 1/1 | WebRTC signaling |
-| `qwen-asr-eai-telecom` | 1/1 | Speech-to-text |
-| `qwen-tts-eai-telecom` | 1/1 | Text-to-speech |
+| `telecom-stt` | 1/1 | Speech-to-text (faster-whisper, CPU) |
+| `telecom-tts` | 1/1 | Text-to-speech (Kokoro-82M, CPU) |
 | `aimsb-telecom-assistant-eai-telecom-agent` | 1/1 | Voice orchestration |
 | `aimsb-telecom-assistant-eai-telecom-frontend` | 1/1 | Browser UI |
 
-LLM (Gemma) runs on the **host**, not in this namespace:
+LLM (Gemma) runs on the **host GPU**, concurrently with CPU speech:
 
 ```bash
 curl -sf http://localhost:8081/health
 ```
 
-### 2. GPU handoff (required on gfx1151)
-
-STT and TTS each request `amd.com/gpu: 1`. Host Gemma also uses the GPU via HIP.
-
-**For voice tests, stop host Gemma:**
+Verify speech services respond inside the cluster:
 
 ```bash
-systemctl --user stop llama-gemma-31b.service
+kubectl run curl-test --rm -it --restart=Never --image=curlimages/curl:8.18.0 -n telecom-assistant -- \
+  sh -c 'curl -sf http://telecom-stt/v1/models && curl -sf http://telecom-tts/v1/models'
 ```
 
-Verify k8s GPU is free:
+First startup may take several minutes while Whisper and Kokoro models download.
 
-```bash
-kubectl describe node | grep -A2 'amd.com/gpu'
-```
-
-Wait until `qwen-asr` and `qwen-tts` are both `Running` (Kueue may serialize them).
-
-**After voice tests, restore Gemma for LLM text chat:**
-
-```bash
-systemctl --user start llama-gemma-31b.service
-curl -sf http://localhost:8081/health
-```
-
-### 3. Port-forwards
+### 2. Port-forwards
 
 ```bash
 kubectl port-forward svc/aimsb-telecom-assistant-eai-telecom-frontend 3000:3000 -n telecom-assistant
@@ -80,7 +66,7 @@ Allow microphone permission when prompted.
 | S5 | STT passphrase `mars` | New call; say *"mars"* | Customer **Max White**; premium plan context | |
 | S6 | BSS balance query | Ask: *"What is my account balance?"* | Agent cites balance (~$125.50 for John / ~$165.50 for Max) | |
 | S7 | RAG billing docs | Ask: *"What are my roaming charges?"* | Answer references billing knowledge base (not hallucinated only) | |
-| S8 | TTS response | Ask any question | Hear synthesized voice reply (voice **Aiden**) | |
+| S8 | TTS response | Ask any question | Hear synthesized voice reply (British English via Kokoro) | |
 | S9 | Support ticket | Ask: *"I need to open a support ticket about my bill"* | Agent confirms ticket; check LibreDesk (optional) | |
 | S10 | End call | Click **End call** | Call ends; can start new **Call** | |
 | S11 | Mute | Toggle microphone off | **Muted** badge; agent should not react to speech | |
@@ -118,7 +104,7 @@ Mock users: [`app/BSSGateway/main.py`](https://github.com/amd-enterprise-ai/solu
 **Pass:** Header shows customer name **John Black**.  
 **Fail:** Check agent logs: `kubectl logs -n telecom-assistant deploy/aimsb-telecom-assistant-eai-telecom-agent -f`
 
-Also verify STT pod: `kubectl logs -n telecom-assistant deploy/qwen-asr-eai-telecom --tail=50`
+Also verify STT pod: `kubectl logs -n telecom-assistant deploy/telecom-stt --tail=50`
 
 ### S4 — Plan badge
 
@@ -153,7 +139,7 @@ Ask: *"Explain my last invoice"* or *"What are international roaming rates?"*
 Ask a short question: *"What is my current balance?"*
 
 **Pass:** Audible spoken response within ~60 s.  
-**Fail:** TTS pod not running (GPU) — `kubectl get pod -n telecom-assistant -l app=qwen-tts-eai-telecom`; ensure Gemma stopped and TTS scheduled.
+**Fail:** TTS pod not ready — `kubectl get pod -n telecom-assistant -l app=telecom-tts`; check logs for Kokoro model download errors.
 
 ### S9 — LibreDesk ticket
 
@@ -194,20 +180,21 @@ LibreDesk UI: `http://localhost:9000` (seeded admin — see chart `values.yaml` 
 
 | Symptom | Likely cause | Action |
 |---------|--------------|--------|
-| `Insufficient amd.com/gpu` on TTS | ASR holds GPU | Wait for ASR ready; stop other GPU workloads |
-| Agent `Init:0/7` forever | STT/TTS/embedding not ready | `kubectl get pods -n telecom-assistant` |
-| No audio output | TTS pending | Stop `llama-gemma-31b.service`; wait for `qwen-tts` Running |
-| LLM errors in agent log | Gemma stopped for voice test | Restart Gemma for LLM; voice needs STT/TTS not Gemma on same GPU moment |
+| Agent `Init:0/7` stuck on STT/TTS | CPU speech pods not ready | `kubectl rollout status deploy/telecom-stt deploy/telecom-tts -n telecom-assistant` |
+| `telecom-stt` CrashLoopBackOff | Whisper model download OOM | Increase memory limit or check HF cache |
+| `telecom-tts` not Ready | Kokoro first-run download slow | Wait up to 10 min; check logs |
+| No audio output | TTS not ready or browser blocked autoplay | Check `telecom-tts` pod; unmute tab |
+| LLM errors in agent log | Gemma not running | `systemctl --user status llama-gemma-31b.service` |
 | WebRTC disconnect | STUNner LB pending / wrong LIVEKIT_URL | Check MetalLB; use `ws://localhost:7880` with port-forward |
-| Empty STT | Mic blocked or ASR not ready | Browser permissions; ASR `/health` on port 8000 inside pod |
+| Empty STT | Mic blocked or STT not ready | Browser permissions; `kubectl logs deploy/telecom-stt` |
 
 ---
 
 ## Restoring normal operation
 
 ```bash
-systemctl --user start llama-gemma-31b.service
-kubectl get aimmodel gemma-4-31b-local -n demo
+systemctl --user status llama-gemma-31b.service
+kubectl get pods -n telecom-assistant -l 'app in (telecom-stt, telecom-tts)'
 ```
 
-Voice models can remain deployed; they only consume GPU when pods are Running.
+CPU speech services can stay running alongside host Gemma; they do not use the GPU.

@@ -1,0 +1,24 @@
+# AIMService (v1alpha2) — deploy trigger for Phi-4-mini-instruct on gfx1151.
+#
+# Applying this manifest causes the AIM operator to:
+#   1. Resolve phi4-mini-r9700-gfx1151-latency (AIMClusterProfile)
+#   2. Create an AIMArtifact job to download weights from
+#      hf://microsoft/Phi-4-mini-instruct (~7.5 GiB, no HF token needed)
+#   3. Spin up the InferenceService pod (amdenterpriseai/aim-base:0.11.0 + vLLM)
+#   4. Register an HTTPRoute for the OpenAI-compatible endpoint
+#
+# Weight download is one-time; caching.mode: Dedicated creates a service-owned PVC
+# so the same weights survive pod restarts without re-downloading.
+#
+# Endpoint after Ready: http://phi4-mini.default.svc.cluster.local/v1
+apiVersion: aim.eai.amd.com/v1alpha2
+kind: AIMService
+metadata:
+  name: phi4-mini
+  namespace: default
+spec:
+  profile:
+    name: phi4-mini-r9700-gfx1151-latency
+  caching:
+    mode: Dedicated
+  replicas: 1

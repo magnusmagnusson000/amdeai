@@ -1,0 +1,37 @@
+# AIMModel registration for Phi-4-mini-instruct on gfx1151.
+#
+# This registers the in-cluster vLLM deployment (phi4-mini-vllm) in AI Workbench
+# using the same external-endpoint pattern as gemma-4-31b-local.
+#
+# The actual serving pod uses kyuz0/vllm-therock-gfx1151:stable (TheRock nightlies,
+# PyTorch compiled for gfx1151) because aim-base:0.11 lacks gfx1151 kernels.
+# See: phi4-mini-deployment.yaml + docs/GFX1151_GPT_OSS_AIM_PROFILE.md
+#
+# Endpoint: http://192.168.32.13:30400/v1 (NodePort 30400 → phi4-mini-vllm:8000)
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMModel
+metadata:
+  name: phi4-mini-vllm
+  namespace: default
+  annotations:
+    aim.eai.amd.com/display-name: Phi-4-mini-instruct 3.8B (gfx1151 vLLM)
+    aim.eai.amd.com/external-endpoint: http://192.168.32.13:30400
+    aim.eai.amd.com/model-id: microsoft-phi-4-mini-instruct
+spec:
+  discovery:
+    extractMetadata: false
+    createServiceTemplates: false
+  image: amdenterpriseai/aim-base:0.11
+  imageMetadata:
+    baseImageRef: docker.io/kyuz0/vllm-therock-gfx1151:stable
+    model:
+      canonicalName: microsoft/Phi-4-mini-instruct
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - instruction
+      descriptionFull: >
+        Phi-4-mini-instruct (3.8B) dense SLM by Microsoft. Served via vLLM on
+        gfx1151 (Strix Halo / R9700) using TheRock nightly PyTorch build.
+        OpenAI-compatible endpoint. No HuggingFace token required.

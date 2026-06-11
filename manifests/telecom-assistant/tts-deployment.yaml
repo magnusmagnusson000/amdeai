@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telecom-tts
+  labels:
+    app: telecom-tts
+    app.kubernetes.io/component: tts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telecom-tts
+  template:
+    metadata:
+      labels:
+        app: telecom-tts
+        app.kubernetes.io/component: tts
+    spec:
+      containers:
+        - name: tts
+          image: telecom-tts-service:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8002
+              name: http
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: HF_HOME
+              value: /app/hf_cache
+          resources:
+            requests:
+              cpu: "2"
+              memory: "6Gi"
+            limits:
+              cpu: "4"
+              memory: "12Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telecom-tts
+  labels:
+    app: telecom-tts
+    app.kubernetes.io/component: tts
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8002
+  selector:
+    app: telecom-tts

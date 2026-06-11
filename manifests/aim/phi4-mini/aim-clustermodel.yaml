@@ -1,0 +1,45 @@
+# AIM catalog entry for Phi-4-mini-instruct — manually authored.
+#
+# No official amdenterpriseai/aim-microsoft-phi-4-mini image exists yet, so this
+# stub registers the model in AI Workbench without triggering discovery or
+# auto-creating service templates. The runtime config lives in aim-clusterprofile.yaml.
+#
+# When AMD publishes an official image, move the image reference to
+# ~/eai-build/cluster-forge/sources/aim-cluster-model-source/aim-models-0.11.0.yaml
+# and remove this file.
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterModel
+metadata:
+  name: microsoft-phi-4-mini-instruct
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+  annotations:
+    aim.eai.amd.com/source-registry: docker.io
+    aim.eai.amd.com/source-repository: amdenterpriseai/aim-base
+    aim.eai.amd.com/source-tag: "0.11"
+spec:
+  image: amdenterpriseai/aim-base:0.11
+  discovery:
+    extractMetadata: false
+    createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: docker.io/amdenterpriseai/aim-base:0.11
+    model:
+      canonicalName: microsoft/Phi-4-mini-instruct
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - instruction
+      descriptionFull: >
+        Phi-4-mini-instruct (3.8B) dense SLM by Microsoft. Validated on gfx1151
+        (Strix Halo / R9700) via vLLM with ROCm HIP. No HuggingFace token required.
+        Runtime config: phi4-mini-r9700-gfx1151-latency (AIMClusterProfile v1alpha2).
+      recommendedDeployments:
+        - gpuModel: R9700
+          gpuCount: 1
+          precision: fp16
+          metric: latency
+          profileId: phi4-mini-r9700-gfx1151-latency
+          description: gfx1151 latency profile — AITER disabled, ROCM_ATTN backend

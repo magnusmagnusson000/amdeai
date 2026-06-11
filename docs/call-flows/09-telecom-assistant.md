@@ -10,12 +10,12 @@
 ```
 Browser → Frontend (:3000) → LiveKit (WebRTC)
                 ↓
-         VoiceAgent → STT (Qwen ASR) → LLM (Gemma 4 host :8081) → TTS (Qwen TTS)
+         VoiceAgent → STT (telecom-stt, CPU Whisper) → LLM (Gemma 4 host :8081) → TTS (telecom-tts, CPU Kokoro)
                 ↓              ↓                    ↓
             BSSGateway    ChromaDB + Embedding    LibreDesk + Redis
 ```
 
-On gfx1151 the LLM leg uses the existing host `llama-server` registered as `gemma-4-31b-local` in namespace `demo` — not the upstream GPT OSS 120B AIM pod.
+On gfx1151 the LLM leg uses the existing host `llama-server` registered as `gemma-4-31b-local` in namespace `demo` — not the upstream GPT OSS 120B AIM pod. STT and TTS are CPU-only services in `services/` (no GPU contention with Gemma).
 
 ## Prerequisites
 
@@ -71,6 +71,8 @@ See [`docs/TELECOM_ASSISTANT_SPEECH_TESTING.md`](../TELECOM_ASSISTANT_SPEECH_TES
 ## Teardown
 
 ```bash
+kubectl delete -f manifests/telecom-assistant/stt-deployment.yaml -n telecom-assistant
+kubectl delete -f manifests/telecom-assistant/tts-deployment.yaml -n telecom-assistant
 helm template eai-telecom ~/eai-build/solution-blueprints/solution-blueprints/telecom-assistant \
   -f manifests/telecom-assistant/values-eai-local.yaml \
   -n telecom-assistant | kubectl delete -f - -n telecom-assistant

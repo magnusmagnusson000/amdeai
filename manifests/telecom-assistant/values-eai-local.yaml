@@ -38,26 +38,16 @@ embedding:
       cpu: "4"
       memory: "16Gi"
 
-# --- STT/TTS: generic ROCm vLLM sub-charts (not MI300 AIM images) ---
-# GPU is shared with host llama-server; see speech testing doc for voice workflow.
+# --- STT/TTS: CPU-only lightweight services (faster-whisper + Kokoro-82M) ---
+# Deployed via manifests/telecom-assistant/{stt,tts}-deployment.yaml (see deploy script).
+# Upstream Qwen GPU sub-charts are disabled; agent points at telecom-stt/telecom-tts.
 stt:
-  memory:
-    requests: 16Gi
-    limits: 32Gi
-  cpu:
-    requests: "2"
-    limits: "4"
+  existingService: "telecom-stt"
+  replicas: 0
 
 tts:
-  # Single GPU: keep scaled to 0 until voice testing (see TELECOM_ASSISTANT_SPEECH_TESTING.md).
+  existingService: "telecom-tts"
   replicas: 0
-  resources:
-    requests:
-      cpu: "2"
-      memory: "8Gi"
-    limits:
-      cpu: "4"
-      memory: "16Gi"
 
 # --- Ingress: blueprint targets kgateway-system; we use Envoy + port-forward first ---
 http_route:

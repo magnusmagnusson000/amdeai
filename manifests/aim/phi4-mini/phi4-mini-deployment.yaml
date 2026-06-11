@@ -1,0 +1,156 @@
+# Phi-4-mini-instruct vLLM deployment for gfx1151 (Strix Halo / R9700).
+#
+# Uses kyuz0/vllm-therock-gfx1151:stable — PyTorch compiled for gfx1151 via
+# TheRock nightlies. The aim-base:0.11 image lacks compiled gfx1151 kernels
+# (torch.randn(..., device='cuda') segfaults), which is why AIMService can't
+# use the standard aim-runtime entrypoint for this GPU.
+#
+# Weights are served from the existing AIMArtifact PVC (downloaded by the
+# AIMService/AIMClusterProfile in step 4 of 09-phi4-mini-aim-profile.sh).
+#
+# Endpoint (in-cluster): http://phi4-mini-vllm.default.svc.cluster.local:8000/v1
+# Companion AIMModel: phi4-mini-vllm (registers endpoint in AI Workbench)
+#
+# See: docs/GFX1151_GPT_OSS_AIM_PROFILE.md  (root cause of aim-base segfault)
+#      docs/gfx1151-upstream-pr-guide.md    (gfx1151 PyTorch kernel status)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phi4-mini-vllm
+  namespace: default
+  labels:
+    app: phi4-mini-vllm
+    aim.eai.amd.com/platform: gfx1151
+    aim.eai.amd.com/model: microsoft-phi-4-mini-instruct
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phi4-mini-vllm
+  template:
+    metadata:
+      labels:
+        app: phi4-mini-vllm
+        aim.eai.amd.com/platform: gfx1151
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: feature.node.kubernetes.io/aim-accelerator.R9700
+                    operator: Exists
+      volumes:
+        - name: model-weights
+          persistentVolumeClaim:
+            claimName: hf---microsoft-phi-4-mini-instruct-2e07ce61bb-cache-89d7670f
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+      containers:
+        - name: vllm
+          image: kyuz0/vllm-therock-gfx1151:stable
+          command:
+            - python
+            - -m
+            - vllm.entrypoints.openai.api_server
+            - --model
+            - /model
+            - --served-model-name
+            - microsoft/Phi-4-mini-instruct
+            - --attention-backend
+            - ROCM_ATTN
+            - --enforce-eager
+            - "true"
+            - --gpu-memory-utilization
+            - "0.35"
+            - --max-model-len
+            - "8192"
+            - --max-num-seqs
+            - "32"
+            - --tensor-parallel-size
+            - "1"
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8000"
+          env:
+            - name: HSA_OVERRIDE_GFX_VERSION
+              value: "11.5.1"
+            - name: HSA_ENABLE_SDMA
+              value: "0"
+            - name: MIOPEN_FIND_ENFORCE
+              value: "1"
+            - name: PYTORCH_ROCM_ARCH
+              value: gfx1151
+            - name: GPU_ARCHS
+              value: gfx1151
+            - name: TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL
+              value: "1"
+            - name: VLLM_ROCM_USE_AITER
+              value: "0"
+            - name: VLLM_ROCM_USE_AITER_MHA
+              value: "0"
+            - name: VLLM_ROCM_USE_AITER_RMSNORM
+              value: "0"
+            - name: VLLM_ROCM_USE_AITER_LINEAR
+              value: "0"
+            - name: VLLM_ROCM_USE_AITER_MOE
+              value: "0"
+            - name: VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION
+              value: "0"
+            - name: VLLM_DO_NOT_TRACK
+              value: "1"
+            - name: VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS
+              value: "900"
+          ports:
+            - containerPort: 8000
+              name: http
+          volumeMounts:
+            - name: model-weights
+              mountPath: /model
+            - name: dshm
+              mountPath: /dev/shm
+          resources:
+            limits:
+              amd.com/gpu: "1"
+            requests:
+              amd.com/gpu: "1"
+              cpu: "4"
+              memory: 16Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phi4-mini-vllm
+  namespace: default
+  labels:
+    app: phi4-mini-vllm
+    aim.eai.amd.com/platform: gfx1151
+spec:
+  selector:
+    app: phi4-mini-vllm
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      nodePort: 30400
+  type: NodePort

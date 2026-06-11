@@ -1,0 +1,29 @@
+# AIM catalog entry for Gemma 4 31B — no pods spawned.
+# Default namespace is default (AI Workbench catalog). Use namespace: demo for telecom.
+# Substitute NODE_IP before apply (see docs/GEMMA4_AIM_BLOOM_POST_INSTALL.md).
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMModel
+metadata:
+  name: gemma-4-31b-local
+  namespace: default
+  annotations:
+    aim.eai.amd.com/external-endpoint: "http://${NODE_IP}:8081"
+    aim.eai.amd.com/display-name: "Gemma 4 31B (local Q4_K_M)"
+    aim.eai.amd.com/model-id: "gemma-4-31b"
+spec:
+  image: amdenterpriseai/aim-base:0.9
+  discovery:
+    extractMetadata: false
+    createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: docker.io/amdenterpriseai/aim-base:0.9
+    model:
+      canonicalName: google/gemma-4-31b-it
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - instruction
+      descriptionFull: >
+        Gemma 4 31B instruction-tuned dense model served from local GGUF weights
+        on gfx1151 (Strix Halo) via host llama-server.

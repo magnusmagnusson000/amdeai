@@ -1,0 +1,26 @@
+# Cluster → host bridge for Gemma 4 26B-A4B llama-server (:8080).
+# Apply after substituting NODE_IP (see docs/GEMMA4_AIM_BLOOM_POST_INSTALL.md).
+apiVersion: v1
+kind: Service
+metadata:
+  name: gemma-4-26b-a4b-local
+  namespace: default
+  labels:
+    app: gemma-4-26b-a4b-local
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: gemma-4-26b-a4b-local
+  namespace: default
+subsets:
+  - addresses:
+      - ip: ${NODE_IP}
+    ports:
+      - name: http
+        port: 8080

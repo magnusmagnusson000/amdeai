@@ -84,25 +84,37 @@ ChromaDB RAG in the agent uses `intfloat/multilingual-e5-large-instruct` via thi
 | STT | `rocm/vllm:v0.14.0_amd_dev` + Qwen3 ASR 1.7B | 1 |
 | TTS | `vllm/vllm-omni-rocm:0.14.0` + Qwen3 TTS 1.7B | 1 |
 
-These are **generic ROCm vLLM** images (not `amdenterpriseai/aim-*` MI300 AIMs). They are the best match available in the upstream chart for gfx1151.
+Each sub-chart requests `amd.com/gpu: 1`. On gfx1151 the single GPU is already used by host Gemma (LLM), so Qwen STT/TTS pods cannot run concurrently with the LLM.
 
-### gfx1151 constraints
+### gfx1151 change: CPU-only speech services
 
-1. **Single physical GPU** — also used by host `llama-gemma-31b.service` (HIP). Kubernetes `amd.com/gpu` may show free while llama.cpp holds the device.
-2. **Kueue** serializes GPU workloads in the `demo` queue; STT and TTS cannot run concurrently with each other or with host Gemma without contention.
+We replace the GPU Qwen sub-charts with lightweight CPU services vendored in this repo:
 
-### Adaptation
+| Service | Image | Model | API |
+|---------|-------|-------|-----|
+| STT | `telecom-stt-service:local` | faster-whisper `small` (CPU, int8) | OpenAI `/v1/audio/transcriptions` + `/v1/models` |
+| TTS | `telecom-tts-service:local` | Kokoro-82M (CPU) | OpenAI `/v1/audio/speech` + `/v1/models` |
+
+Source code: [`services/stt-service/`](../services/stt-service/) and [`services/tts-service/`](../services/tts-service/).
+
+Kubernetes manifests: [`manifests/telecom-assistant/stt-deployment.yaml`](../manifests/telecom-assistant/stt-deployment.yaml), [`manifests/telecom-assistant/tts-deployment.yaml`](../manifests/telecom-assistant/tts-deployment.yaml).
+
+### Helm overrides
 
 | Setting | Value | Reason |
 |---------|-------|--------|
-| `stt.memory.requests/limits` | 16Gi / 32Gi | Reduce from 32/64 GiB default for 128 GB host |
-| `tts.replicas` | `0` | Avoid permanent Pending pod; scale up only for voice tests |
-| `tts.resources` | 8–16 GiB RAM | Keep within lab memory budget |
-| Agent init patch | [`patch-agent-init-gfx1151.sh`](../manifests/telecom-assistant/patch-agent-init-gfx1151.sh) | Upstream agent waits for **both** STT and TTS `/models`; on one GPU they cannot both be Ready — patch removes those init containers (`GFX1151_SINGLE_GPU=1` in deploy script) |
+| `stt.existingService` | `telecom-stt` | Agent `STT_BASE_URL` → `http://telecom-stt/v1` (chart adds `http://` prefix) |
+| `stt.replicas` | `0` | Do not deploy Qwen ASR GPU pod |
+| `tts.existingService` | `telecom-tts` | Agent `TTS_BASE_URL` → `http://telecom-tts/v1` |
+| `tts.replicas` | `0` | Do not deploy Qwen TTS GPU pod |
 
-**Voice testing workflow:** stop host Gemma, scale `qwen-tts-eai-telecom` to 1, stop STT or run tests sequentially — see [`TELECOM_ASSISTANT_SPEECH_TESTING.md`](TELECOM_ASSISTANT_SPEECH_TESTING.md).
+The upstream agent init containers poll `STT_BASE_URL/models` and `TTS_BASE_URL/models`. The CPU services expose `/v1/models`, so **no init-container patch is required** — STT, TTS, and host Gemma can all run at the same time.
 
-**Automated Playwright tests** use the Client Simulator **text chat** path so LLM/RAG/BSS/LibreDesk can be validated without exclusive GPU access.
+Deploy script [`scripts/09-telecom-assistant.sh`](../scripts/09-telecom-assistant.sh) builds both images, imports them into RKE2 containerd, and applies the STT/TTS manifests before the Helm chart.
+
+**Voice testing:** see [`TELECOM_ASSISTANT_SPEECH_TESTING.md`](TELECOM_ASSISTANT_SPEECH_TESTING.md) — no GPU handoff or Gemma stop required.
+
+**Automated Playwright tests** use the Client Simulator **text chat** path; integration tests cover STT/TTS `/v1/models` when deployed.
 
 ---
 
@@ -223,8 +235,8 @@ E2E_TELECOM=1 pytest tests/e2e/test_telecom_assistant.py -v
 
 | Limitation | Mitigation |
 |------------|------------|
-| Single GPU shared host + k8s | Text E2E via Client Simulator; voice manual with Gemma stopped |
-| No gfx1151 AIM images for Qwen STT/TTS | Use upstream ROCm vLLM sub-charts |
+| Single GPU shared host + k8s | LLM on host GPU; STT/TTS on CPU — no contention |
+| No gfx1151 AIM images for Qwen STT/TTS | CPU faster-whisper + Kokoro-82M in `services/` |
 | kgateway HTTPRoute templates | Port-forward phase 1; custom Envoy routes phase 2 |
-| Disk ~80% used | LLM weights not downloaded (external Gemma); monitor STT/TTS HF pulls |
+| Disk ~80% used | Whisper/Kokoro HF pulls are smaller than Qwen 1.7B weights |
 | LibreDesk ticket API | Seeded by postgres-dump-restore Job ([DEPLOYMENT.md](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/docs/DEPLOYMENT.md#postgres-data-migration)) |
