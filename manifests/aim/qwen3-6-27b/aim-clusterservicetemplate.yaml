@@ -1,0 +1,69 @@
+# AIMClusterServiceTemplate for Qwen/Qwen3.6-27B on gfx1151 / R9700.
+#
+# Required for the AI Workbench catalog Deploy button. AIMClusterModel alone is
+# not enough — the UI filters to Ready templates whose GPU matches the cluster.
+# Auto-discovery is disabled on the stub aim-base image, so this template is
+# authored manually (see docs/GFX1151_GPT_OSS_AIM_PROFILE.md).
+#
+# Note: Deploy creates a managed AIMService (aim-base:0.11) which will not run
+# inference on gfx1151. Use the external qwen3-6-27b-vllm AIMModel endpoint for
+# actual chat; this template enables catalog UX and weight caching via AIMService.
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterServiceTemplate
+metadata:
+  name: qwen3-6-27b-r9700-gfx1151-latency
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+    aim.eai.amd.com/cluster-model.name: qwen-qwen3-6-27b
+spec:
+  modelName: qwen-qwen3-6-27b
+  aimId: qwen/qwen3-6-27b
+  modelId: Qwen/Qwen3.6-27B
+  metric: latency
+  precision: bf16
+  hardware:
+    gpu:
+      model: R9700
+      requests: 1
+  env:
+    - name: AIM_GPU_MODEL
+      value: R9700
+    - name: AIM_GPU_COUNT
+      value: "1"
+    - name: HSA_OVERRIDE_GFX_VERSION
+      value: "11.5.1"
+    - name: HSA_ENABLE_SDMA
+      value: "0"
+    - name: MIOPEN_FIND_ENFORCE
+      value: "1"
+    - name: PYTORCH_ROCM_ARCH
+      value: gfx1151
+    - name: TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL
+      value: "1"
+  customProfile:
+    engineArgs:
+      tensor-parallel-size: 1
+      gpu-memory-utilization: 0.55
+      max-model-len: 32768
+      max-num-seqs: 16
+      attention-backend: ROCM_ATTN
+      enforce-eager: true
+      trust-remote-code: true
+      reasoning-parser: qwen3
+    envVars:
+      HSA_OVERRIDE_GFX_VERSION: "11.5.1"
+      HSA_ENABLE_SDMA: "0"
+      MIOPEN_FIND_ENFORCE: "1"
+      PYTORCH_ROCM_ARCH: gfx1151
+      GPU_ARCHS: gfx1151
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      VLLM_ROCM_USE_AITER: "0"
+      VLLM_ROCM_USE_AITER_MHA: "0"
+      VLLM_ROCM_USE_AITER_RMSNORM: "0"
+      VLLM_ROCM_USE_AITER_LINEAR: "0"
+      VLLM_ROCM_USE_AITER_MOE: "0"
+      VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "0"
+      VLLM_DO_NOT_TRACK: "1"
+      VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS: "900"
+      VLLM_USE_V1: "0"

@@ -774,6 +774,11 @@ Key differences from the Phi-4-mini example:
 - Disable thinking in API calls: `"chat_template_kwargs": {"enable_thinking": false}`
 - MTP speculative decoding enabled via `--speculative-config '{"model":"/model","num_speculative_tokens":1}'`
   (uses built-in `Qwen3_5MTP` draft head; ~1.7× TPS on gfx1151, ~90% draft acceptance)
+- `AIMClusterServiceTemplate` required for the AI Workbench catalog **Deploy** button
+  (`createServiceTemplates: false` on the stub model skips auto-generation). Apply
+  `manifests/aim/qwen3-6-27b/aim-clusterservicetemplate.yaml` and ensure R9700 labels
+  (`scripts/03b-gfx1151-aim-labels.sh`). Do not set both `profileId` and `customProfile`
+  on the template — that duplicates `AIM_PROFILE_ID` and blocks discovery.
 
 ---
 

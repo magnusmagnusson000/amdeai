@@ -90,6 +90,18 @@ while [[ $ELAPSED -lt $PROFILE_READY_TIMEOUT ]]; do
   sleep 10; ELAPSED=$((ELAPSED + 10))
 done
 
+# --- Step 3b: AIMClusterServiceTemplate (enables AI Workbench catalog Deploy) ---
+echo ""
+echo "--- Step 3b: AIMClusterServiceTemplate ---"
+kubectl apply -f "${MANIFEST_DIR}/aim-clusterservicetemplate.yaml"
+for _ in $(seq 1 30); do
+  TSTATUS=$(kubectl get aimclusterservicetemplate qwen3-6-27b-r9700-gfx1151-latency \
+    -o jsonpath='{.status.status}' 2>/dev/null || echo "")
+  echo "  template status: ${TSTATUS:-pending}"
+  [[ "$TSTATUS" == "Ready" ]] && break
+  sleep 5
+done
+
 # --- Step 4: Apply AIMService to trigger weight download ---
 echo ""
 echo "--- Step 4: AIMService (weight download only) ---"
