@@ -20,8 +20,8 @@ const {
   LIVEKIT_PROXY_ENABLED = "1",
   LIVEKIT_PROXY_PREFIX = "/livekit",
   PORT = "3000",
-  GEMMA_WARMUP_URL = "http://gemma-4-31b-local.demo.svc.cluster.local:8081",
-  LLM_MODEL = "gemma-4-31b",
+  LLM_WARMUP_URL = "http://qwen3-6-27b-llm.default.svc.cluster.local",
+  LLM_MODEL = "Qwen/Qwen3.6-27B",
 } = process.env;
 
 const proxy = httpProxy.createProxyServer({ ws: true, changeOrigin: true });
@@ -45,9 +45,12 @@ function clientLiveKitUrl(req) {
   return LIVEKIT_URL;
 }
 
-function warmupGemma() {
-  const base = GEMMA_WARMUP_URL.replace(/\/$/, "");
-  fetch(`${base}/v1/chat/completions`, {
+function warmupLlm() {
+  const base = LLM_WARMUP_URL.replace(/\/$/, "");
+  const url = base.endsWith("/v1")
+    ? `${base}/chat/completions`
+    : `${base}/v1/chat/completions`;
+  fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -60,10 +63,10 @@ function warmupGemma() {
     }),
   })
     .then((r) => {
-      if (!r.ok) console.warn("gemma warmup HTTP", r.status);
-      else console.log("gemma warmup ok");
+      if (!r.ok) console.warn("llm warmup HTTP", r.status);
+      else console.log("llm warmup ok");
     })
-    .catch((e) => console.warn("gemma warmup failed:", e.message));
+    .catch((e) => console.warn("llm warmup failed:", e.message));
 }
 
 if (LIVEKIT_PROXY_ENABLED === "1") {
@@ -74,7 +77,7 @@ if (LIVEKIT_PROXY_ENABLED === "1") {
 }
 
 app.post("/api/connection-details", async (req, res) => {
-  warmupGemma();
+  warmupLlm();
   const serverUrl = clientLiveKitUrl(req);
   if (!serverUrl || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
     return res.status(500).json({ error: "LiveKit env vars not configured" });
@@ -134,5 +137,5 @@ server.listen(Number(PORT), "0.0.0.0", () => {
   if (LIVEKIT_PROXY_ENABLED === "1") {
     console.log(`LiveKit WS proxy: ${LIVEKIT_PROXY_PREFIX} -> ${LIVEKIT_UPSTREAM}`);
   }
-  warmupGemma();
+  warmupLlm();
 });

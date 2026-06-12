@@ -10,9 +10,8 @@ This document records every change required to run the [AMD Telecom Assistant bl
 | Helm overrides | [`manifests/telecom-assistant/values-eai-local.yaml`](../manifests/telecom-assistant/values-eai-local.yaml) |
 | Call flow | [`docs/call-flows/09-telecom-assistant.md`](call-flows/09-telecom-assistant.md) |
 | Speech manual tests | [`docs/TELECOM_ASSISTANT_SPEECH_TESTING.md`](TELECOM_ASSISTANT_SPEECH_TESTING.md) |
-| Gemma 4 LLM backend | [`docs/call-flows/08-gemma4-31b.md`](call-flows/08-gemma4-31b.md) |
+| Qwen3.6-27B AIM (LLM backend) | [`docs/QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md`](QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md) |
 | Blueprint upstream deploy | [solution-blueprints `docs/DEPLOYMENT.md`](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/docs/DEPLOYMENT.md) |
-| AIM catalog (default models) | [AMD EAI AIM catalog](https://enterprise-ai.docs.amd.com/en/latest/aims/catalog/models.html) |
 
 ---
 
@@ -22,221 +21,119 @@ This document records every change required to run the [AMD Telecom Assistant bl
 |------|---------|
 | `~/eai-build/solution-blueprints` | Upstream blueprint (cloned, not forked) |
 | `manifests/telecom-assistant/values-eai-local.yaml` | gfx1151-specific Helm overrides (tracked in amdeai) |
+| `manifests/telecom-assistant/qwen-llm-bridge.yaml` | Stable ClusterIP → hybrid `qwen3-6-27b-vllm` Deployment (AIM weights) |
 | `telecom-assistant` namespace | Isolated deploy target |
-
-Clone (if missing):
-
-```bash
-git clone https://github.com/amd-enterprise-ai/solution-blueprints.git ~/eai-build/solution-blueprints
-```
 
 ---
 
-## 2. LLM: GPT OSS 120B → Gemma 4 31B (host llama-server)
+## 2. LLM: GPT OSS 120B → Qwen3.6-27B (managed AIMService)
 
 ### Upstream default
 
-The parent chart [`values.yaml`](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/values.yaml) deploys:
-
-- Sub-chart `llm` → image `amdenterpriseai/aim-openai-gpt-oss-120b:0.10.0`
-- Agent env `LLM_MODEL: openai/gpt-oss-120b`
-- Ephemeral storage **512 GiB** on `mlstorage`
-
-See [DEPLOYMENT.md — Default AIM image](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/docs/DEPLOYMENT.md#default-aim-image-and-gpu-compatibility).
+The parent chart deploys sub-chart `llm` → image `amdenterpriseai/aim-openai-gpt-oss-120b:0.10.0` with **512 GiB** ephemeral storage.
 
 ### gfx1151 change
 
 | Setting | Value | Reason |
 |---------|-------|--------|
-| `llm.existingService` | `http://gemma-4-31b-local.demo.svc.cluster.local:8081` | Skip in-cluster LLM pod; use host [`llama-server` on :8081](call-flows/08-gemma4-31b.md) |
-| `mainServices.agent.env.LLM_MODEL` | `gemma-4-31b` | OpenAI-compatible model id exposed by llama.cpp |
-| `mainServices.agent.env.LLM_API_KEY` | `no-key-required` | No auth on local endpoint |
+| `llm.existingService` | `http://qwen3-6-27b-llm.default.svc.cluster.local` | Skip in-cluster GPT OSS pod; use managed **Qwen/Qwen3.6-27B** vLLM |
+| `mainServices.agent.env.LLM_MODEL` | `Qwen/Qwen3.6-27B` | OpenAI model id from vLLM `--served-model-name` |
+| `mainServices.agent.env.LLM_API_KEY` | `no-key-required` | No auth on cluster endpoint |
 
-The `aimchart-llm` sub-chart skips Deployment/Service when `existingService` is set ([sub-chart README](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/charts/aimchart-llm/README.md)).
+The chart sets agent `LLM_BASE_URL` to `{existingService}/v1` via `aimchart-llm.url`.
 
-**Prerequisite:** `bash scripts/08-gemma4-31b.sh` with `AIM_NAMESPACE=demo`.
+**Prerequisite:** `bash scripts/10-qwen3-6-27b.sh` — deploys `AIMService/qwen3-6-27b` (Running) with KServe predictor on gfx1151.
+
+### Additional changes for Qwen AIM (beyond Helm values)
+
+1. **Stable bridge Service** — [`manifests/telecom-assistant/qwen-llm-bridge.yaml`](../manifests/telecom-assistant/qwen-llm-bridge.yaml)  
+   KServe creates a predictor Service with a hash suffix that changes on InferenceService recreation; the KServe webhook can also fail under disk pressure. The bridge selects the hybrid **`qwen3-6-27b-vllm`** Deployment (from `scripts/10-qwen3-6-27b.sh`), reuses AIM-downloaded weights, and exposes port 80 → container 8000.
+
+2. **Agent patches** — [`services/telecom-agent/agent.py`](../services/telecom-agent/agent.py) mounted via ConfigMap ([`scripts/patch-telecom-agent.sh`](../scripts/patch-telecom-agent.sh)):
+   - LLM read timeout **120s** (Qwen first-token latency on 27B)
+   - Worker **prewarm** calls `/v1/chat/completions` at startup
+   - Recoverable error handler (no session kill on transient LLM errors)
+
+3. **Frontend warmup + LiveKit WS proxy** — [`services/telecom-frontend/`](../services/telecom-frontend/):
+   - `LLM_WARMUP_URL` → bridge Service (page-load vLLM warmup)
+   - `LIVEKIT_PROXY_ENABLED=1` — WebSocket proxied at `/livekit` on port 3000 (LAN-friendly single port-forward)
+
+4. **LLM warmup CronJob** — [`manifests/telecom-assistant/llm-warmup-cronjob.yaml`](../manifests/telecom-assistant/llm-warmup-cronjob.yaml) hits the bridge every 2 minutes.
+
+5. **GPU allocation** — Qwen3.6-27B uses the single gfx1151 GPU inside the cluster (vLLM predictor pod). CPU STT/TTS do **not** use the GPU, so voice + LLM can run concurrently without stopping other services.
+
+6. **Reasoning model** — Qwen3.6-27B uses `--reasoning-parser qwen3`. Responses may include `reasoning` fields; agent timeouts were increased accordingly. E2E text-chat timeout is **240s**.
 
 ---
 
 ## 3. Embedding: gfx942 → CPU Infinity
 
-### Upstream default
-
-Parent chart sets `embedding.image: michaelf34/infinity:0.0.70-amd-gfx942` (MI300-class).
-
-### gfx1151 change
-
 | Setting | Value | Reason |
 |---------|-------|--------|
-| `embedding.image` | `michaelf34/infinity:latest` | CPU build; gfx942 ROCm tag does not run on RDNA3.5 |
-| `embedding.gpus` | `0` | Avoid claiming the single `amd.com/gpu` |
-
-ChromaDB RAG in the agent uses `intfloat/multilingual-e5-large-instruct` via this service ([blueprint README](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/README.md)).
+| `embedding.image` | `michaelf34/infinity:latest` | CPU build; gfx942 ROCm tag fails on RDNA3.5 |
+| `embedding.gpus` | `0` | Avoid claiming GPU from Qwen predictor |
 
 ---
 
-## 4. STT / TTS (voice models)
+## 4. STT / TTS: CPU-only speech services
 
-### Upstream default
-
-| Role | Sub-chart image | GPU |
-|------|-----------------|-----|
-| STT | `rocm/vllm:v0.14.0_amd_dev` + Qwen3 ASR 1.7B | 1 |
-| TTS | `vllm/vllm-omni-rocm:0.14.0` + Qwen3 TTS 1.7B | 1 |
-
-Each sub-chart requests `amd.com/gpu: 1`. On gfx1151 the single GPU is already used by host Gemma (LLM), so Qwen STT/TTS pods cannot run concurrently with the LLM.
-
-### gfx1151 change: CPU-only speech services
-
-We replace the GPU Qwen sub-charts with lightweight CPU services vendored in this repo:
-
-| Service | Image | Model | API |
-|---------|-------|-------|-----|
-| STT | `telecom-stt-service:local` | faster-whisper `small` (CPU, int8) | OpenAI `/v1/audio/transcriptions` + `/v1/models` |
-| TTS | `telecom-tts-service:local` | Kokoro-82M (CPU) | OpenAI `/v1/audio/speech` + `/v1/models` |
-
-Source code: [`services/stt-service/`](../services/stt-service/) and [`services/tts-service/`](../services/tts-service/).
-
-Kubernetes manifests: [`manifests/telecom-assistant/stt-deployment.yaml`](../manifests/telecom-assistant/stt-deployment.yaml), [`manifests/telecom-assistant/tts-deployment.yaml`](../manifests/telecom-assistant/tts-deployment.yaml).
-
-### Helm overrides
-
-| Setting | Value | Reason |
-|---------|-------|--------|
-| `stt.existingService` | `telecom-stt` | Agent `STT_BASE_URL` → `http://telecom-stt/v1` (chart adds `http://` prefix) |
-| `stt.replicas` | `0` | Do not deploy Qwen ASR GPU pod |
-| `tts.existingService` | `telecom-tts` | Agent `TTS_BASE_URL` → `http://telecom-tts/v1` |
-| `tts.replicas` | `0` | Do not deploy Qwen TTS GPU pod |
-
-The upstream agent init containers poll `STT_BASE_URL/models` and `TTS_BASE_URL/models`. The CPU services expose `/v1/models`, so **no init-container patch is required** — STT, TTS, and host Gemma can all run at the same time.
-
-Deploy script [`scripts/09-telecom-assistant.sh`](../scripts/09-telecom-assistant.sh) builds both images, imports them into RKE2 containerd, and applies the STT/TTS manifests before the Helm chart.
-
-**Voice testing:** see [`TELECOM_ASSISTANT_SPEECH_TESTING.md`](TELECOM_ASSISTANT_SPEECH_TESTING.md) — no GPU handoff or Gemma stop required.
-
-**Automated Playwright tests** use the Client Simulator **text chat** path; integration tests cover STT/TTS `/v1/models` when deployed.
-
----
-
-## 5. Storage class
-
-### Upstream default
-
-`mlstorage` on enterprise clusters.
-
-### gfx1151 (Bloom)
-
-`mlstorage` exists (`rancher.io/local-path` provisioner). No override to Longhorn required.
-
-| Component | `storageClassName` |
-|-----------|-------------------|
-| Ephemeral model cache | `mlstorage` |
-| ChromaDB PVC | `mlstorage`, 10 GiB |
-
----
-
-## 6. Gateway / LiveKit WebSocket URL
-
-### Upstream assumption
-
-[`DEPLOYMENT.md`](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/docs/DEPLOYMENT.md#livekit-websocket-url) builds:
-
-```bash
-wss://livekit-aimsb-telecom-assistant-${name}$(kubectl get gtw https -n kgateway-system ...)
-```
-
-Bloom uses **Envoy Gateway** in `envoy-gateway-system`, not `kgateway-system`.
-
-### gfx1151 change (phase 1)
+Upstream Qwen GPU sub-charts are replaced with faster-whisper + Kokoro-82M in [`services/stt-service/`](../services/stt-service/) and [`services/tts-service/`](../services/tts-service/).
 
 | Setting | Value |
 |---------|-------|
-| `http_route.enabled` | `false` |
-| `mainServices.frontend.env.LIVEKIT_URL` | `ws://localhost:7880` (port-forward smoke test) |
+| `stt.existingService` | `telecom-stt` |
+| `stt.replicas` | `0` |
+| `tts.existingService` | `telecom-tts` |
+| `tts.replicas` | `0` |
 
-Port-forwards:
-
-```bash
-kubectl port-forward svc/aimsb-telecom-assistant-eai-telecom-frontend 3000:3000 -n telecom-assistant
-kubectl port-forward svc/eai-telecom-livekit 7880:7880 -n telecom-assistant
-```
-
-### gfx1151 change (phase 2 — browser WebRTC)
-
-1. Add HTTPRoute on Gateway `https` (`envoy-gateway-system`) for frontend + LiveKit signaling.
-2. Set `FRONTEND_LIVEKIT_URL=wss://livekit-telecom.<node-ip>.nip.io` (or MetalLB VIP hostname).
-3. STUNner per-release Gateway (UDP 3478) routes media — see [STUNner docs](https://github.com/l7mp/stunner/blob/main/docs/GATEWAY.md).
+No GPU handoff required — Qwen LLM and CPU speech coexist.
 
 ---
 
-## 7. STUNner (WebRTC media gateway)
+## 5. Storage, Gateway, STUNner, infra images
 
-### Upstream prerequisite
+Unchanged from prior gfx1151 adaptation: `mlstorage`, port-forward phase 1, STUNner enabled (`stunner.enabled: true`). See [`call-flows/09-telecom-assistant.md`](call-flows/09-telecom-assistant.md) for port-forward and WebRTC notes.
 
-[`install-prerequisites.sh`](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/install-prerequisites.sh) installs cluster-wide STUNner operator into `stunner-system`.
+### Docker Hub rate limits
 
-### gfx1151 status
+| Component | Workaround |
+|-----------|------------|
+| `libredesk/libredesk:v1.0.3` | Use `ghcr.io/abhinavxd/libredesk:v1.0.3-amd64` in `infraServices.libredesk.image` |
+| `amdenterpriseai/...-bssgateway` | Build locally from [`services/telecom-bssgateway/`](../services/telecom-bssgateway/) (reuses `telecom-stt-service:local` base) |
+| `amdenterpriseai/...-agent` | Build from upstream `docker/agent.Dockerfile` (GHCR `uv` base); tag `telecom-agent:local`, `imagePullPolicy: Never` |
+| Global pulls | `imagePullPolicy: IfNotPresent` in `values-eai-local.yaml` after importing images into RKE2 containerd |
 
-- Operator installed once per cluster (`INSTALL_STUNNER=1` in deploy script).
-- Helm release may show `failed` if `--wait` times out; pods can still be Running — verify with `kubectl get pods -n stunner-system`.
-- The telecom chart also bundles a STUNner subchart that creates additional operator resources in `telecom-assistant` (duplicate of cluster install). Per-release Gateway/UDPRoute in `telecom-assistant` routes WebRTC media for this deployment.
-- Per-release STUNner Gateway/UDPRoute rendered into `telecom-assistant` namespace (`stunner.enabled: true`).
-
-With STUNner, wide UDP **50000–60000** node exposure is usually **not** required ([DEPLOYMENT.md — UDP firewall](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/docs/DEPLOYMENT.md#livekit-udp-firewall-requirement-with-stunner)).
-
----
-
-## 8. Demo namespace cleanup (pre-deploy)
-
-Removed Workbench AIM clutter that blocked GPU and disk:
-
-| Resource | Action |
-|----------|--------|
-| `AIMService/wb-aim-e21dff22` | Deleted (GPT OSS 20B, CrashLoop) |
-| `AIMService/wb-aim-f358af29` | Deleted (duplicate Gemma AIMService) |
-| `AIMTemplateCache/amdenterpriseai-aim-openai-gpt-oss-20b-*` | Deleted (stopped HF 38 GiB re-download) |
-| `AIMArtifact/hf---openai-gpt-oss-20b-*` | Deleted |
-| HTTPRoutes `wb-aim-*` | Deleted |
-
-**Retained:** `AIMModel/gemma-4-31b-local`, `Service/gemma-4-31b-local` (LLM bridge for telecom).
+`scripts/09-telecom-assistant.sh` builds and imports bssgateway by default (`BUILD_BSSGATEWAY=1`). Set `BUILD_TELECOM_AGENT=1` on first deploy or after upstream agent changes (slow build; uses GHCR not Docker Hub).
 
 ---
 
-## 9. Deploy command
+## 6. Deploy command
 
 ```bash
-bash scripts/09-telecom-assistant.sh
-```
+# 1. Ensure Qwen AIM is Running
+kubectl get aimservice qwen3-6-27b -n default
+kubectl get svc qwen3-6-27b-llm -n default
 
-Optional env:
-
-```bash
-FRONTEND_LIVEKIT_URL=ws://localhost:7880 \
-TELECOM_NAMESPACE=telecom-assistant \
-TELECOM_RELEASE=eai-telecom \
+# 2. Deploy telecom stack
 bash scripts/09-telecom-assistant.sh
 ```
 
 ---
 
-## 10. Validation
+## 7. Validation
 
 ```bash
-# Integration (cluster APIs, no browser)
 pytest tests/integration/test_telecom_assistant.py -v
-
-# Playwright E2E (requires port-forwards)
 E2E_TELECOM=1 pytest tests/e2e/test_telecom_assistant.py -v
 ```
 
 ---
 
-## 11. Known limitations on gfx1151
+## 8. Known limitations on gfx1151
 
 | Limitation | Mitigation |
 |------------|------------|
-| Single GPU shared host + k8s | LLM on host GPU; STT/TTS on CPU — no contention |
-| No gfx1151 AIM images for Qwen STT/TTS | CPU faster-whisper + Kokoro-82M in `services/` |
-| kgateway HTTPRoute templates | Port-forward phase 1; custom Envoy routes phase 2 |
-| Disk ~80% used | Whisper/Kokoro HF pulls are smaller than Qwen 1.7B weights |
-| LibreDesk ticket API | Seeded by postgres-dump-restore Job ([DEPLOYMENT.md](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/docs/DEPLOYMENT.md#postgres-data-migration)) |
+| Single GPU | Qwen vLLM predictor owns GPU; STT/TTS on CPU |
+| Qwen STT/TTS upstream images | CPU faster-whisper + Kokoro in `services/` |
+| STUNner LoadBalancer pending | MetalLB pool may be exhausted; use LiveKit WS proxy on :3000; TURN may need shared-IP fix |
+| Qwen latency | Agent 120s LLM timeout; frontend + CronJob warmup |

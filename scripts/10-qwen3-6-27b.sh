@@ -425,4 +425,12 @@ echo "  kubectl delete aimclustermodel ${MODEL_NAME}"
 echo ""
 echo "Docs: docs/GFX1151_CUSTOM_AIM_DEPLOYMENT_GUIDE.md"
 
+# Large local image builds can fill disk and evict Keycloak/UI pods (sign-in breaks).
+echo ""
+echo "--- Post-build: prune Docker build cache (protects web UIs from disk-pressure) ---"
+docker builder prune -af 2>/dev/null || true
+if ! curl -sk -o /dev/null -w "%{http_code}" "https://kc.$(domain)/" 2>/dev/null | grep -qE '^(200|302)$'; then
+  echo "WARNING: Keycloak unhealthy after Qwen build. Run: bash scripts/fix-web-uis.sh"
+fi
+
 disk_report "10-qwen3-6-27b-end"

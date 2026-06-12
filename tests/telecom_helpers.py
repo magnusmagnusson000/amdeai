@@ -93,10 +93,16 @@ def agent_env(name: str, namespace: str = NAMESPACE) -> str | None:
     return None
 
 
-def gemma_base_url() -> str:
-    return os.environ.get("GEMMA_TEST_URL", "http://127.0.0.1:8081")
+def qwen_llm_base_url() -> str:
+    return os.environ.get(
+        "QWEN_LLM_TEST_URL",
+        "http://127.0.0.1:18080",
+    )
 
 
-def check_gemma_health(timeout: int = 10) -> None:
-    r = requests.get(f"{gemma_base_url()}/health", timeout=timeout)
+def check_qwen_llm_models(timeout: int = 30) -> None:
+    r = requests.get(f"{qwen_llm_base_url()}/v1/models", timeout=timeout)
     assert r.status_code == 200
+    data = r.json()
+    ids = [m.get("id") for m in data.get("data", [])]
+    assert any("Qwen" in (mid or "") for mid in ids)

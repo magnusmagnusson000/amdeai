@@ -54,16 +54,35 @@ if [[ "$BUILD_CPU_SPEECH" == "1" ]]; then
 fi
 
 BUILD_TELECOM_FRONTEND="${BUILD_TELECOM_FRONTEND:-1}"
+BUILD_BSSGATEWAY="${BUILD_BSSGATEWAY:-1}"
+BUILD_TELECOM_AGENT="${BUILD_TELECOM_AGENT:-0}"
 if [[ "$BUILD_TELECOM_FRONTEND" == "1" ]]; then
-  echo "Building patched frontend image (Gemma page-load warmup)..."
+  echo "Building patched frontend image (LLM page-load warmup + LiveKit WS proxy)..."
   docker build -t telecom-frontend:local "$EAI_ROOT/services/telecom-frontend/"
   docker save telecom-frontend:local | $CTR images import -
 fi
 
-echo "Deploying CPU STT/TTS services..."
+if [[ "$BUILD_BSSGATEWAY" == "1" ]]; then
+  echo "Building local BSSGateway image (reuses STT base; avoids Docker Hub rate limits)..."
+  docker build -t telecom-bssgateway:local "$EAI_ROOT/services/telecom-bssgateway/"
+  docker save telecom-bssgateway:local | $CTR images import -
+fi
+
+if [[ "$BUILD_TELECOM_AGENT" == "1" ]]; then
+  echo "Building local agent image (GHCR uv base; avoids Docker Hub rate limits)..."
+  docker build -f "$TELECOM_REPO/docker/agent.Dockerfile" -t telecom-agent:local "$TELECOM_REPO"
+  docker save telecom-agent:local | $CTR images import -
+fi
+
+echo "Deploying Qwen LLM bridge and CPU STT/TTS services..."
+kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/qwen-llm-bridge.yaml"
+kubectl scale deployment qwen3-6-27b-vllm -n default --replicas=1 2>/dev/null || true
+kubectl rollout status deployment/qwen3-6-27b-vllm -n default --timeout=900s 2>/dev/null || \
+  echo "WARN: qwen3-6-27b-vllm not ready (run scripts/10-qwen3-6-27b.sh first)"
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/stt-deployment.yaml" -n "$TELECOM_NAMESPACE"
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/tts-deployment.yaml" -n "$TELECOM_NAMESPACE"
-kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/gemma-warmup-cronjob.yaml" -n "$TELECOM_NAMESPACE"
+kubectl delete cronjob gemma-warmup -n "$TELECOM_NAMESPACE" --ignore-not-found
+kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/llm-warmup-cronjob.yaml" -n "$TELECOM_NAMESPACE"
 
 echo "Rendering and applying chart..."
 helm template "$TELECOM_RELEASE" . \
@@ -90,8 +109,8 @@ kubectl wait --for=condition=available deployment \
 kubectl get pods,svc -n "$TELECOM_NAMESPACE"
 
 echo ""
-echo "Warming up Gemma (host llama-server)..."
-GEMMA_URL="${GEMMA_URL:-http://localhost:8081}" bash "$EAI_ROOT/scripts/warmup-gemma.sh" || echo "WARN: Gemma warmup skipped (is llama-server running?)"
+echo "Warming up Qwen3.6-27B AIM..."
+bash "$EAI_ROOT/scripts/warmup-llm.sh" || echo "WARN: LLM warmup skipped (is AIMService qwen3-6-27b Running?)"
 
 echo ""
 echo "Port-forward (separate terminals):"

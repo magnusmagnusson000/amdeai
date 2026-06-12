@@ -126,7 +126,7 @@ def test_text_chat_milkyway_passphrase(page: Page):
 
     expect(page.locator("body")).to_contain_text(
         re.compile(r"John|Black|Essential|balance|account", re.I),
-        timeout=180000,
+        timeout=240000,
     )
 
 

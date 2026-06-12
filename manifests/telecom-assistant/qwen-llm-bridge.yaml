@@ -1,0 +1,19 @@
+# Stable in-cluster OpenAI endpoint for Telecom Assistant → Qwen3.6-27B.
+# Targets the hybrid vLLM Deployment (scripts/10-qwen3-6-27b.sh) which reuses
+# AIMService-downloaded weights. Avoids KServe predictor hash / webhook fragility.
+# Agent LLM_BASE_URL: http://qwen3-6-27b-llm.default.svc.cluster.local/v1
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen3-6-27b-llm
+  namespace: default
+  labels:
+    app.kubernetes.io/component: telecom-llm-bridge
+spec:
+  type: ClusterIP
+  selector:
+    app: qwen3-6-27b-vllm
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000

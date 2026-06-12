@@ -13,9 +13,9 @@ from telecom_helpers import (
     NAMESPACE,
     RELEASE,
     agent_env,
-    check_gemma_health,
+    check_qwen_llm_models,
     deployment_replicas,
-    gemma_base_url,
+    qwen_llm_base_url,
     pod_ready,
     port_forward,
     wait_pod,
@@ -99,23 +99,30 @@ def test_embedding_models():
         assert r.status_code == 200
 
 
-def test_gemma_llm_bridge():
-    """LLM for telecom is host Gemma (also reachable via demo namespace Service)."""
-    check_gemma_health()
-    base = gemma_base_url()
-    models = requests.get(f"{base}/v1/models", timeout=10)
-    assert models.status_code == 200
-    chat = requests.post(
-        f"{base}/v1/chat/completions",
-        json={
-            "model": "gemma-4-31b",
-            "messages": [{"role": "user", "content": "Say hi in one word."}],
-            "max_tokens": 8,
-        },
-        timeout=120,
-    )
-    assert chat.status_code == 200
-    assert "choices" in chat.json()
+def test_agent_uses_qwen_llm_config():
+    wait_pod("aimsb-telecom-assistant-eai-telecom-agent", timeout=600)
+    llm_model = agent_env("LLM_MODEL")
+    llm_url = agent_env("LLM_BASE_URL")
+    assert llm_model == "Qwen/Qwen3.6-27B"
+    assert "qwen3-6-27b-llm" in (llm_url or "")
+
+
+def test_qwen_llm_bridge():
+    """LLM for telecom is the managed Qwen3.6-27B AIMService (stable bridge Service)."""
+    with port_forward("svc/qwen3-6-27b-llm", 18080, 80, namespace="default"):
+        check_qwen_llm_models()
+        chat = requests.post(
+            f"{qwen_llm_base_url()}/v1/chat/completions",
+            json={
+                "model": "Qwen/Qwen3.6-27B",
+                "messages": [{"role": "user", "content": "Say hi in one word."}],
+                "max_tokens": 32,
+            },
+            timeout=180,
+        )
+        assert chat.status_code == 200
+        body = chat.json()
+        assert "choices" in body
 
 
 def test_cpu_stt_health_and_models():

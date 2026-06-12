@@ -1,10 +1,10 @@
-# Keeps Gemma 4 hot between page loads (llama.cpp first-token latency).
+# Keeps Qwen3.6-27B AIM hot between page loads (vLLM first-token latency).
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: gemma-warmup
+  name: llm-warmup
   labels:
-    app: gemma-warmup
+    app: llm-warmup
 spec:
   schedule: "*/2 * * * *"
   concurrencyPolicy: Forbid
@@ -16,24 +16,23 @@ spec:
       template:
         metadata:
           labels:
-            app: gemma-warmup
+            app: llm-warmup
         spec:
           restartPolicy: OnFailure
           containers:
             - name: warmup
               image: curlimages/curl:8.18.0
               env:
-                - name: GEMMA_URL
-                  value: "http://gemma-4-31b-local.demo.svc.cluster.local:8081"
-                - name: GEMMA_MODEL
-                  value: "gemma-4-31b"
+                - name: LLM_URL
+                  value: "http://qwen3-6-27b-llm.default.svc.cluster.local/v1/chat/completions"
+                - name: LLM_MODEL
+                  value: "Qwen/Qwen3.6-27B"
               command:
                 - sh
                 - -c
                 - |
                   set -e
-                  curl -sf "${GEMMA_URL}/health"
-                  curl -sf --max-time 120 -X POST "${GEMMA_URL}/v1/chat/completions" \
+                  curl -sf --max-time 120 -X POST "${LLM_URL}" \
                     -H "Content-Type: application/json" \
                     -H "Authorization: Bearer no-key-required" \
-                    -d "{\"model\":\"${GEMMA_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+                    -d "{\"model\":\"${LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
