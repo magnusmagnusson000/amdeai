@@ -772,6 +772,8 @@ Key differences from the Phi-4-mini example:
 - Hybrid GatedDeltaNet architecture: KV-cache only on 16 of 64 layers, so memory
   overhead at 32K context is modest (~2 GiB) despite the 27 B parameter count
 - Disable thinking in API calls: `"chat_template_kwargs": {"enable_thinking": false}`
+- MTP speculative decoding enabled via `--speculative-config '{"model":"/model","num_speculative_tokens":1}'`
+  (uses built-in `Qwen3_5MTP` draft head; ~1.7× TPS on gfx1151, ~90% draft acceptance)
 
 ---
 

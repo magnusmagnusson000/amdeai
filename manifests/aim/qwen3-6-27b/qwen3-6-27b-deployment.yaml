@@ -6,6 +6,7 @@
 #
 # Qwen3.6-27B requires --trust-remote-code (GatedDeltaNet hybrid architecture)
 # and --reasoning-parser qwen3 for thinking-token parsing.
+# MTP speculative decoding uses the built-in Qwen3_5MTP draft head (~1.7x TPS on gfx1151).
 #
 # Endpoint (in-cluster): http://qwen3-6-27b-vllm.default.svc.cluster.local:8000/v1
 # NodePort: 30401
@@ -21,6 +22,8 @@ metadata:
     aim.eai.amd.com/model: qwen-qwen3-6-27b
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: qwen3-6-27b-vllm
@@ -72,6 +75,8 @@ spec:
             - "16"
             - --tensor-parallel-size
             - "1"
+            - --speculative-config
+            - '{"model":"/model","num_speculative_tokens":1}'
             - --host
             - "0.0.0.0"
             - --port
