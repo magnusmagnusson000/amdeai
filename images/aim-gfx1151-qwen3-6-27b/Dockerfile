@@ -32,9 +32,13 @@ FROM kyuz0/vllm-therock-gfx1151:stable
 # Copy the aim-runtime Python package — source only, no GPU dependencies
 COPY --from=aim-src /workspace/aim-runtime /workspace/aim-runtime
 
-# Install aim-runtime's Python requirements on top of the vLLM environment.
-# These are lightweight (pyyaml, pydantic, hf-hub, etc.) and do not touch ROCm.
-RUN pip install --no-cache-dir -r /workspace/aim-runtime/requirements.txt
+# DO NOT install from aim-runtime/requirements.txt — it pins huggingface-hub==0.36.x
+# which would DOWNGRADE the version that transformers 5.5.x requires (>=1.5.0).
+# That downgrade breaks: ImportError: cannot import name 'is_offline_mode' from 'huggingface_hub'
+#
+# Instead, explicitly upgrade huggingface-hub to a compatible version.
+# All other aim-runtime deps (pydantic, click, pyyaml…) are already in the vLLM base image.
+RUN pip install --no-cache-dir "huggingface-hub>=1.5.0,<2.0"
 
 # Replicate aim-base environment so aim-runtime finds its config and src package
 ENV PYTHONPATH="/workspace/aim-runtime/src"
@@ -44,6 +48,16 @@ ENV AIM_ACCELERATOR_FAMILY="instinct"
 ENV AIM_ACCELERATOR_TYPE="gpu"
 ENV AIM_UPSTREAM_IMAGE_REF="docker.io/kyuz0/vllm-therock-gfx1151:stable"
 
+# aim-runtime in aim-base:0.11 is a library, not a runnable module — it has no
+# __main__.py. Add one so `python -m aim_runtime` works as the container entry point.
+# AIMConfig.from_environment() reads AIM_MODEL_ID / AIM_PROFILE_ID / AIM_CACHE_PATH
+# from the env vars injected by the AIM operator; serve() calls os.execv() into vLLM.
+RUN cat > /workspace/aim-runtime/src/aim_runtime/__main__.py <<'PYEOF'
+from aim_runtime import AIMRuntime
+from aim_runtime.config import AIMConfig
+AIMRuntime(AIMConfig.from_environment()).serve()
+PYEOF
+
 # OCI label for AIM operator discovery (mirrors what official aim images set)
 LABEL com.amd.aim.model.canonicalName="qwen/qwen3-6-27b"
 LABEL com.amd.aim.base.version="0.11"
@@ -51,9 +65,8 @@ LABEL com.amd.aim.gfx="gfx1151"
 
 WORKDIR /workspace
 
-# aim-runtime has no installed binary — invoked as a Python module.
 # The operator mounts the profile ConfigMap at:
 #   /workspace/aim-runtime/profiles/custom/qwen/qwen3-6-27b/
 # and injects AIM_PROFILE_ID=custom/qwen/qwen3-6-27b/vllm-r9700-bf16-tp1-latency
-# aim-runtime reads that YAML, sets env vars, and execv()s into vLLM.
-ENTRYPOINT ["python", "-m", "aim_runtime", "serve"]
+# aim-runtime reads that YAML, sets env vars, and os.execv()s into vLLM.
+ENTRYPOINT ["python", "-m", "aim_runtime"]
