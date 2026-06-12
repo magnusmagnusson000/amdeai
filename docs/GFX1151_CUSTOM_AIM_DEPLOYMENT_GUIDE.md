@@ -41,8 +41,32 @@ weights PVC it creates persists and is reused by the plain Deployment.
   - Verify: `kubectl get crd aimservices.aim.eai.amd.com`
 - `kubectl` configured with cluster admin permissions
 - Docker Hub pull access (images are public, no auth needed)
-- ~15 GiB free persistent storage (for the weights PVC)
-- ~10 GiB free disk on the node (for `kyuz0/vllm-therock-gfx1151:stable` image pull)
+- Sufficient free disk for model weights + optional image pull (see table below)
+
+### Disk space
+
+Disk requirements are **model-specific**. The `kyuz0/vllm-therock-gfx1151:stable`
+image (~10 GiB) only needs to be pulled once; subsequent deployments reuse the
+cached image.
+
+| Model (example) | Weight precision | Weights PVC | Recommended free disk |
+|-----------------|------------------|-------------|----------------------|
+| Phi-4-mini-instruct (3.8 B) | fp16 | ~8 GiB | ~15 GiB |
+| Qwen/Qwen3.6-27B (27 B) | bf16 | ~56 GiB | ~60 GiB |
+| General rule | — | model size × 1.1 | weights + 15 GiB reserve |
+
+Check free space before deploying:
+
+```bash
+df -h /
+```
+
+If disk is tight, remove unused weight PVCs from prior experiments:
+
+```bash
+kubectl get pvc -n default
+# kubectl delete aimservice <name> -n default  # also removes the PVC
+```
 
 ### Node label — R9700 accelerator class
 
@@ -160,6 +184,9 @@ download source for the `AIMArtifact` system.
 | `TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"` | — | Enables G8 AOTriton path for gfx1151 |
 | `containerEnv.AIM_GPU_MODEL: R9700` | — | Without this, `aim-runtime` sees `Detected GPU: None` and exits immediately |
 | `containerEnv.VLLM_USE_V1: "0"` | — | vLLM 0.16.0 V1 EngineCore silently fails on gfx1151; V0 is stable |
+| `precision: fp16` | Phi-4-mini example | Match the model's weight dtype — use `bf16` for Qwen3.6-27B |
+| `resources.requests.memory` | `32Gi` for Phi-4-mini | Scale up for larger models — `64Gi` for 27 B BF16 |
+| `engineArgs.max-model-len` | `8192` for Phi-4-mini | Reduce for large models on gfx1151 — `32768` is practical for 27 B |
 
 > **`containerEnv` vs `engineEnv`:**  
 > `engineEnv` is a free-form `map[string]string` passed to the vLLM process.  
@@ -369,6 +396,16 @@ Also replace `<NODE_IP>` with your Kubernetes node's internal IP:
 kubectl get nodes -o wide | awk 'NR>1 {print $6}'
 # Example: 192.168.32.13
 ```
+
+> **Non-standard architectures (e.g. Qwen3.6-27B):**  
+> Models with custom code (GatedDeltaNet, hybrid linear-attention) require two
+> extra vLLM CLI args in the Deployment `command` block:
+> - `--trust-remote-code` — loads the custom model class from HuggingFace
+> - `--reasoning-parser qwen3` — parses Qwen thinking/reasoning tokens  
+> Without `--trust-remote-code`, vLLM refuses to load the model.  
+> For Qwen3.6-27B also increase `gpu-memory-utilization` to `0.55`, container
+> `memory` to `32Gi`, `dshm` to `16Gi`, and readiness `initialDelaySeconds` to
+> `300` (27 B load takes 10–20 min).
 
 ```yaml
 # phi4-mini-deployment.yaml
@@ -684,9 +721,17 @@ manifests:
 | `spec.modelId` / `spec.aimId` | `AIMClusterProfile` |
 | `spec.modelSources[0].modelId` + `sourceUri` | `AIMClusterProfile` |
 | `spec.profile.name` | `AIMService` |
+| `spec.precision` | `AIMClusterProfile`, `recommendedDeployments` in `AIMClusterModel` |
+| `spec.resources.requests.memory` | `AIMClusterProfile` (`32Gi` SLM, `64Gi` for 27 B) |
+| `engineArgs.max-model-len` | `AIMClusterProfile`, `Deployment` command args |
+| `engineArgs.gpu-memory-utilization` | `AIMClusterProfile`, `Deployment` command args |
 | `--served-model-name` | `Deployment` command args |
+| `--trust-remote-code` | `Deployment` command args (required for non-standard architectures) |
+| `--reasoning-parser` | `Deployment` command args (e.g. `qwen3` for Qwen thinking models) |
 | `claimName` | `Deployment` volumes |
+| `nodePort` | `Service` (use unique port per model, e.g. 30400, 30401) |
 | `aim.eai.amd.com/model-id` annotation | `AIMModel` |
+| `aim.eai.amd.com/external-endpoint` | `AIMModel` (must match `nodePort`) |
 
 ### Sizing `gpu-memory-utilization`
 
@@ -702,6 +747,31 @@ set `gpu-memory-utilization` conservatively:
 | Multiple AIM models co-deployed | `0.20`–`0.30` |
 
 Formula: `gpu-memory-utilization × total_vram_GiB ≤ free_vram_GiB`
+
+| Model size | Typical `gpu-memory-utilization` (solo workload) |
+|------------|--------------------------------------------------|
+| ≤ 8 B (fp16) | `0.35`–`0.40` |
+| 27 B (bf16) | `0.55` |
+| Alongside host llama.cpp (~50 GB) | subtract ~0.20 from solo value |
+
+### Qwen/Qwen3.6-27B example
+
+A complete second deployment following this guide is available at:
+
+| Resource | Path |
+|----------|------|
+| Manifests | `manifests/aim/qwen3-6-27b/` |
+| Deploy script | `scripts/10-qwen3-6-27b.sh` |
+| NodePort | `30401` |
+
+Key differences from the Phi-4-mini example:
+
+- `precision: bf16` (not fp16)
+- Weights PVC ~56 GiB (download takes 30–60 min)
+- `--trust-remote-code` and `--reasoning-parser qwen3` required
+- Hybrid GatedDeltaNet architecture: KV-cache only on 16 of 64 layers, so memory
+  overhead at 32K context is modest (~2 GiB) despite the 27 B parameter count
+- Disable thinking in API calls: `"chat_template_kwargs": {"enable_thinking": false}`
 
 ---
 
@@ -762,6 +832,21 @@ the InferenceService immediately:
 ```bash
 kubectl scale replicaset -n default \
   -l "serving.kserve.io/inferenceservice=phi4-mini" --replicas=0
+```
+
+### NodePort returns connection refused despite pod `Ready`
+
+If the pod passes its readiness probe but `curl http://<NODE_IP>:<nodePort>/health`
+fails, check whether the EndpointSlice is stale (common after a 30+ minute vLLM
+startup — the slice was created while the pod was still `notReady`):
+
+```bash
+kubectl get endpointslice -n default -l kubernetes.io/service-name=<service-name> \
+  -o jsonpath='{.items[0].endpoints[0].conditions.ready}{"\n"}'
+# Expected: true
+
+# If false, delete the slice — the controller recreates it within seconds:
+kubectl delete endpointslice -n default -l kubernetes.io/service-name=<service-name>
 ```
 
 ### `phi4-mini-vllm` pod stuck in `ContainerCreating`

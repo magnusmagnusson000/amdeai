@@ -1,0 +1,21 @@
+# AIMService (v1alpha2) — deploy trigger for Qwen/Qwen3.6-27B on gfx1151.
+#
+# Applying this manifest causes the AIM operator to:
+#   1. Resolve qwen3-6-27b-r9700-gfx1151-latency (AIMClusterProfile)
+#   2. Create an AIMArtifact job to download weights from
+#      hf://Qwen/Qwen3.6-27B (~55.6 GiB BF16, no HF token needed)
+#   3. Spin up the InferenceService pod (amdenterpriseai/aim-base:0.11 + vLLM)
+#
+# The InferenceService pod will crash on gfx1151 (expected). The weights PVC
+# persists and is reused by the plain Deployment in qwen3-6-27b-deployment.yaml.
+apiVersion: aim.eai.amd.com/v1alpha2
+kind: AIMService
+metadata:
+  name: qwen3-6-27b
+  namespace: default
+spec:
+  profile:
+    name: qwen3-6-27b-r9700-gfx1151-latency
+  caching:
+    mode: Dedicated
+  replicas: 1

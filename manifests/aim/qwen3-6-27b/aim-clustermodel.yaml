@@ -1,0 +1,43 @@
+# AIM catalog entry for Qwen/Qwen3.6-27B — manually authored.
+#
+# No official amdenterpriseai/aim-qwen3-6-27b image exists yet, so this stub
+# registers the model in AI Workbench without triggering discovery or
+# auto-creating service templates. The runtime config lives in aim-clusterprofile.yaml.
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterModel
+metadata:
+  name: qwen-qwen3-6-27b
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+  annotations:
+    aim.eai.amd.com/source-registry: docker.io
+    aim.eai.amd.com/source-repository: amdenterpriseai/aim-base
+    aim.eai.amd.com/source-tag: "0.11"
+spec:
+  image: amdenterpriseai/aim-base:0.11
+  discovery:
+    extractMetadata: false
+    createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: docker.io/amdenterpriseai/aim-base:0.11
+    model:
+      canonicalName: Qwen/Qwen3.6-27B
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - instruction
+        - reasoning
+      descriptionFull: >
+        Qwen3.6-27B (27B) dense hybrid-attention model by Qwen. Validated on gfx1151
+        (Strix Halo / R9700) via vLLM with ROCm HIP. No HuggingFace token required.
+        Runtime config: qwen3-6-27b-r9700-gfx1151-latency (AIMClusterProfile v1alpha2).
+        Requires --trust-remote-code (GatedDeltaNet architecture).
+      recommendedDeployments:
+        - gpuModel: R9700
+          gpuCount: 1
+          precision: bf16
+          metric: latency
+          profileId: qwen3-6-27b-r9700-gfx1151-latency
+          description: gfx1151 latency profile — AITER disabled, ROCM_ATTN backend, BF16
