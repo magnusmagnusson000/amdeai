@@ -905,9 +905,145 @@ If missing, add it explicitly to the Deployment env block:
 ### `torch.randn segfault` inside `aim-base:0.11` debug pod
 
 This is the root cause of all AIMService failures on gfx1151. The `aim-base:0.11`
-PyTorch build does not include compiled kernels for `gfx1151`. This is why the guide
-uses `kyuz0/vllm-therock-gfx1151:stable` for inference. There is no workaround for
-`aim-base:0.11` on RDNA 3.5 until AMD ships a gfx1151-compiled image.
+PyTorch build does not include compiled kernels for `gfx1151`. The solution is the
+custom AIM image described below.
+
+---
+
+## Custom AIM Image for Managed Deployment (gfx1151)
+
+> **Status:** Implemented — 2026-06-12. Enables full MI300X-style managed `AIMService`
+> flow on `gfx1151` without a separate plain `Deployment`.
+
+### Problem summary
+
+The three-layer hybrid approach above has one significant limitation: the `AIMService`
+InferenceService pod crashes because `aim-base:0.11` bundles CDNA-compiled PyTorch.
+This means:
+
+- **Workbench Deploy button** creates a crashing pod
+- **HTTPRoutes** are not provisioned by the managed flow
+- The external `AIMModel` endpoint is a workaround, not the intended path
+
+### Solution: custom AIM image
+
+`images/aim-gfx1151-qwen3-6-27b/Dockerfile` creates a custom image that combines:
+
+| Layer | Source | Purpose |
+|-------|--------|---------|
+| `aim-runtime` Python package | `amdenterpriseai/aim-base:0.11` (build stage) | Reads profile ConfigMap, sets env vars, exec()s into vLLM |
+| vLLM + ROCm + gfx1151 PyTorch | `kyuz0/vllm-therock-gfx1151:stable` (runtime base) | Actual GPU inference stack |
+
+`aim-runtime` is pure Python (no GPU dependencies) — it can be extracted from
+`aim-base` and run on any Python environment. When the AIM operator launches the
+predictor pod, it mounts the profile YAML as a ConfigMap and sets `AIM_PROFILE_ID`.
+`aim-runtime` reads that YAML, assembles the vLLM CLI arguments, and `os.execv()`s
+into `vllm serve`. The custom image intercepts this flow and runs vLLM against the
+gfx1151-compiled PyTorch stack.
+
+### Build and push (one-time, ~5-10 min)
+
+```bash
+# Registry deployment (if not running)
+kubectl apply -f - <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: registry}
+  template:
+    metadata:
+      labels: {app: registry}
+    spec:
+      containers:
+      - name: registry
+        image: registry:2
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/registry
+      volumes:
+      - name: data
+        hostPath:
+          path: /var/lib/rancher/registry-data
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: kube-system
+spec:
+  type: NodePort
+  selector: {app: registry}
+  ports:
+  - port: 5000
+    targetPort: 5000
+    nodePort: 32000
+EOF
+
+# RKE2 registries config
+sudo tee /etc/rancher/rke2/registries.yaml <<'EOF'
+mirrors:
+  "192.168.32.13:32000":
+    endpoint:
+      - "http://192.168.32.13:32000"
+  "localhost:32000":
+    endpoint:
+      - "http://localhost:32000"
+EOF
+sudo systemctl restart rke2-server
+
+# Build + push (first run pulls ~15 GB of base images)
+IMAGE=192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
+docker build -t "$IMAGE" images/aim-gfx1151-qwen3-6-27b/
+docker push "$IMAGE"
+```
+
+The `scripts/10-qwen3-6-27b.sh` script does this automatically (Step 0).
+
+### Gateway fix (AIMRuntimeConfig)
+
+The cluster-scoped `AIMClusterRuntimeConfig/default` (Helm-managed) references
+`kgateway-system/https` which does not exist on this cluster. The actual Gateway
+is in `envoy-gateway-system/https`. A namespace-scoped `AIMRuntimeConfig` overrides this:
+
+```bash
+kubectl apply -f manifests/aim/qwen3-6-27b/aim-runtimeconfig-demo.yaml
+```
+
+This is applied automatically by Step 3c of `scripts/10-qwen3-6-27b.sh`.
+
+### Manifest changes (relative to hybrid approach)
+
+| File | Change |
+|------|--------|
+| `aim-clusterprofile.yaml` | `image:` → `192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock`; `max-num-seqs: 16`; added `speculative-config` (MTP) |
+| `aim-clustermodel.yaml` | annotations + `image:` → local registry |
+| `aim-clusterservicetemplate.yaml` | added `speculative-config` (MTP); `max-num-seqs: 16` |
+| `aim-runtimeconfig-demo.yaml` | **new** — fixes gateway ref for `demo` namespace |
+| `images/aim-gfx1151-qwen3-6-27b/Dockerfile` | **new** — multi-stage build |
+| `scripts/10-qwen3-6-27b.sh` | adds Step 0 (image build), Step 3c (gateway fix), managed predictor wait, hybrid fallback via `SKIP_MANAGED_BUILD=1` |
+
+### MTP speculative decoding
+
+Qwen3.6-27B includes a built-in `Qwen3_5MTP` multi-token prediction head. With vLLM
+0.19.2rc1+ on gfx1151 this can be enabled for improved throughput:
+
+```python
+speculative_config = {
+    "model": "/workspace/cache/Qwen/Qwen3.6-27B",  # same model = MTP head
+    "num_speculative_tokens": 1,
+}
+```
+
+This is set in both `aim-clusterprofile.yaml` and `aim-clusterservicetemplate.yaml`.
+`max-num-seqs` is reduced to 16 (from 32) for memory stability with MTP active.
 
 ---
 
@@ -917,17 +1053,20 @@ uses `kyuz0/vllm-therock-gfx1151:stable` for inference. There is no workaround f
 |----------|-------------|-------|---------|
 | `AIMClusterModel` | `aim.eai.amd.com/v1alpha1` | Cluster | Catalog entry |
 | `AIMClusterProfile` | `aim.eai.amd.com/v1alpha2` | Cluster | Runtime config + download source |
-| `AIMService` | `aim.eai.amd.com/v1alpha2` | Namespace | Deployment trigger + weight download |
+| `AIMClusterServiceTemplate` | `aim.eai.amd.com/v1alpha1` | Cluster | Workbench catalog Deploy button |
+| `AIMRuntimeConfig` | `aim.eai.amd.com/v1alpha1` | Namespace | Gateway + routing overrides |
+| `AIMService` | `aim.eai.amd.com/v1alpha2` | Namespace | Managed deployment trigger |
 | `AIMArtifact` | `aim.eai.amd.com/v1alpha1` | Namespace | Download job + PVC (managed by operator) |
-| `AIMModel` | `aim.eai.amd.com/v1alpha1` | Namespace | External endpoint registration |
-| `Deployment` + `Service` | `apps/v1`, `v1` | Namespace | Actual inference pod (kyuz0 image) |
+| `AIMModel` | `aim.eai.amd.com/v1alpha1` | Namespace | External endpoint registration (hybrid only) |
+| `Deployment` + `Service` | `apps/v1`, `v1` | Namespace | Inference pod (hybrid fallback only) |
 
 ### Image reference
 
 | Image | Source | Purpose |
 |-------|--------|---------|
-| `amdenterpriseai/aim-base:0.11` | Docker Hub | AIM catalog entries (not for inference on gfx1151) |
-| `kyuz0/vllm-therock-gfx1151:stable` | Docker Hub | vLLM on gfx1151 — TheRock nightly PyTorch |
+| `amdenterpriseai/aim-base:0.11` | Docker Hub | Build stage only — extracts `aim-runtime` |
+| `kyuz0/vllm-therock-gfx1151:stable` | Docker Hub | Runtime base — vLLM 0.19.2rc1 + gfx1151 PyTorch |
+| `192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock` | Local cluster registry | Custom managed AIM image |
 
 ### Validated environment
 
@@ -937,5 +1076,5 @@ uses `kyuz0/vllm-therock-gfx1151:stable` for inference. There is no workaround f
 | Kernel | linux-oem-24.04d (required for stable HIP on RDNA 3.5) |
 | ROCm | 7.2.x |
 | AIM Engine | 0.11.0 |
-| vLLM | latest in `kyuz0/vllm-therock-gfx1151:stable` |
-| Kubernetes | RKE2 v1.32 |
+| vLLM | 0.19.2rc1 (in `kyuz0/vllm-therock-gfx1151:stable`) |
+| Kubernetes | RKE2 v1.34.1 |

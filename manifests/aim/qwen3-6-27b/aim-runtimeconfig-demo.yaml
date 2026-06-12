@@ -1,0 +1,26 @@
+# AIMRuntimeConfig for the demo namespace — overrides the cluster-scoped
+# AIMClusterRuntimeConfig to point at the correct gateway.
+#
+# Problem: AIMClusterRuntimeConfig/default (Helm/ArgoCD-managed) references
+# kgateway-system/https which does not exist on this cluster. The actual
+# Gateway is in envoy-gateway-system/https. This causes HTTPRoutePending
+# on every AIMService in the demo namespace.
+#
+# Solution: namespace-scoped AIMRuntimeConfig takes precedence over the
+# cluster-scoped one (merged, namespace values win). Overriding only the
+# routing section leaves all other cluster defaults intact.
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMRuntimeConfig
+metadata:
+  name: default
+  namespace: demo
+spec:
+  routing:
+    enabled: true
+    gatewayRef:
+      group: gateway.networking.k8s.io
+      kind: Gateway
+      name: https
+      namespace: envoy-gateway-system
+    pathTemplate: '{.metadata.namespace}/{.metadata.labels[''airm.silogen.ai/workload-id'']}'
+    requestTimeout: 30m

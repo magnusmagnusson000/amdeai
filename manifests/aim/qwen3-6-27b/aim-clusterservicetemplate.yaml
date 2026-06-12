@@ -2,12 +2,11 @@
 #
 # Required for the AI Workbench catalog Deploy button. AIMClusterModel alone is
 # not enough — the UI filters to Ready templates whose GPU matches the cluster.
-# Auto-discovery is disabled on the stub aim-base image, so this template is
-# authored manually (see docs/GFX1151_GPT_OSS_AIM_PROFILE.md).
+# Auto-discovery is disabled, so this template is authored manually.
 #
-# Note: Deploy creates a managed AIMService (aim-base:0.11) which will not run
-# inference on gfx1151. Use the external qwen3-6-27b-vllm AIMModel endpoint for
-# actual chat; this template enables catalog UX and weight caching via AIMService.
+# With the custom gfx1151 AIM image (images/aim-gfx1151-qwen3-6-27b/Dockerfile),
+# Workbench Deploy now creates a fully managed AIMService that runs inference
+# end-to-end on gfx1151 — no separate Deployment needed.
 apiVersion: aim.eai.amd.com/v1alpha1
 kind: AIMClusterServiceTemplate
 metadata:
@@ -51,6 +50,7 @@ spec:
       enforce-eager: true
       trust-remote-code: true
       reasoning-parser: qwen3
+      speculative-config: '{"model":"/workspace/cache/Qwen/Qwen3.6-27B","num_speculative_tokens":1}'
     envVars:
       HSA_OVERRIDE_GFX_VERSION: "11.5.1"
       HSA_ENABLE_SDMA: "0"

@@ -1,8 +1,9 @@
 # AIM catalog entry for Qwen/Qwen3.6-27B — manually authored.
 #
-# No official amdenterpriseai/aim-qwen3-6-27b image exists yet, so this stub
-# registers the model in AI Workbench without triggering discovery or
-# auto-creating service templates. The runtime config lives in aim-clusterprofile.yaml.
+# Uses custom gfx1151 AIM image (images/aim-gfx1151-qwen3-6-27b/Dockerfile):
+#   aim-runtime (pure Python) from aim-base:0.11 + kyuz0 vLLM 0.19.2rc1 stack.
+# This enables the managed AIMService flow (InferenceService) on gfx1151.
+# Runtime config lives in aim-clusterprofile.yaml.
 apiVersion: aim.eai.amd.com/v1alpha1
 kind: AIMClusterModel
 metadata:
@@ -11,16 +12,16 @@ metadata:
     aim.eai.amd.com/origin: manual
     aim.eai.amd.com/platform: gfx1151
   annotations:
-    aim.eai.amd.com/source-registry: docker.io
-    aim.eai.amd.com/source-repository: amdenterpriseai/aim-base
-    aim.eai.amd.com/source-tag: "0.11"
+    aim.eai.amd.com/source-registry: 192.168.32.13:32000
+    aim.eai.amd.com/source-repository: aim-gfx1151-qwen3-6-27b
+    aim.eai.amd.com/source-tag: "0.11-therock"
 spec:
-  image: amdenterpriseai/aim-base:0.11
+  image: 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
   discovery:
     extractMetadata: false
     createServiceTemplates: false
   imageMetadata:
-    baseImageRef: docker.io/amdenterpriseai/aim-base:0.11
+    baseImageRef: 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
     model:
       canonicalName: Qwen/Qwen3.6-27B
       hfTokenRequired: false

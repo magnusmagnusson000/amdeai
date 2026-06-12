@@ -2,13 +2,19 @@
 #
 # Qwen3.6-27B uses a hybrid GatedDeltaNet architecture (48 linear-attention +
 # 16 gated-attention layers). vLLM requires --trust-remote-code and
-# --reasoning-parser qwen3 at inference time (see qwen3-6-27b-deployment.yaml).
+# --reasoning-parser qwen3 at inference time.
 #
 # Key gfx1151 constraints:
 #   - acceleratorModel: R9700  requires scripts/03b-gfx1151-aim-labels.sh
 #   - precision: bf16         Qwen3.6-27B weights are BF16 (~55.6 GiB)
 #   - gpu-memory-utilization: 0.55  conservative for 128 GiB unified memory
 #   - max-model-len: 32768    practical limit on gfx1151 (model supports 262K)
+#   - max-num-seqs: 16        reduced from 32 for MTP speculative decoding stability
+#
+# image: 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
+#   Custom image built from images/aim-gfx1151-qwen3-6-27b/Dockerfile.
+#   Layers aim-runtime (pure Python) from aim-base:0.11 onto kyuz0 vLLM stack.
+#   This is what enables the managed AIMService flow on gfx1151.
 #
 # See: docs/GFX1151_CUSTOM_AIM_DEPLOYMENT_GUIDE.md
 apiVersion: aim.eai.amd.com/v1alpha2
@@ -36,17 +42,18 @@ spec:
       cpu: "4"
       memory: 64Gi
 
-  image: amdenterpriseai/aim-base:0.11
+  image: 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
 
   engineArgs:
     tensor-parallel-size: "1"
     gpu-memory-utilization: "0.55"
     max-model-len: "32768"
-    max-num-seqs: "32"
+    max-num-seqs: "16"
     attention-backend: ROCM_ATTN
     enforce-eager: "true"
     trust-remote-code: "true"
     reasoning-parser: qwen3
+    speculative-config: '{"model":"/workspace/cache/Qwen/Qwen3.6-27B","num_speculative_tokens":1}'
 
   engineEnv:
     HSA_OVERRIDE_GFX_VERSION: "11.5.1"
