@@ -15,14 +15,18 @@ Browser → Frontend (:3000, /livekit WS proxy) → LiveKit (WebRTC)
             BSSGateway    ChromaDB + Embedding      LibreDesk + Redis
 ```
 
-On gfx1151 the LLM leg uses managed **AIMService `qwen3-6-27b`** (vLLM on gfx1151), reached via stable Service **`qwen3-6-27b-llm`** in namespace `default`. STT and TTS are CPU-only services in `services/`.
+On gfx1151 the LLM leg uses **Qwen/Qwen3.6-27B** from the AI Workbench catalog (Deploy), reached via stable Service **`qwen3-6-27b-llm`** in namespace `default`. [`scripts/ensure-qwen-llm-bridge.sh`](../../scripts/ensure-qwen-llm-bridge.sh) binds that Service to whichever AIM predictor pod is Ready (including Workbench `demo/wb-aim-*` deploys). STT and TTS are CPU-only services in `services/`.
 
 ## Prerequisites
 
 ```bash
-# Qwen3.6-27B AIM (LLM backend)
-kubectl get aimservice qwen3-6-27b -n default
-kubectl get svc qwen3-6-27b-llm -n default
+# 1. Deploy Qwen/Qwen3.6-27B from AI Workbench catalog; wait until predictor Ready
+kubectl get aimservice -A | grep -i qwen
+
+# 2. Bridge → Ready predictor
+bash scripts/ensure-qwen-llm-bridge.sh
+kubectl get endpoints qwen3-6-27b-llm -n default
+
 kubectl run curl-test --rm -it --restart=Never --image=curlimages/curl:8.18.0 -n telecom-assistant -- \
   curl -sf http://qwen3-6-27b-llm.default.svc.cluster.local/v1/models
 
@@ -30,12 +34,12 @@ kubectl run curl-test --rm -it --restart=Never --image=curlimages/curl:8.18.0 -n
 kubectl cluster-info
 ```
 
-Deploy Qwen AIM first if missing: `bash scripts/10-qwen3-6-27b.sh`
+Alternative scripted AIM: `bash scripts/10-qwen3-6-27b.sh`
 
 ## Deploy
 
 ```bash
-bash scripts/09-telecom-assistant.sh
+TELECOM_SKIP_BUILD=1 bash scripts/09-telecom-assistant.sh
 ```
 
 ## Access (port-forward)

@@ -1,23 +1,25 @@
 # AIMService (v1alpha2) — managed deploy trigger for Qwen/Qwen3.6-27B on gfx1151.
 #
+# Deploy in the demo namespace (AI Workbench catalog path: /demo/models/aim-catalog).
 # Applying this manifest causes the AIM operator to:
-#   1. Resolve qwen3-6-27b-r9700-gfx1151-latency (AIMClusterProfile)
-#   2. Create an AIMArtifact job to download weights from
-#      hf://Qwen/Qwen3.6-27B (~55.6 GiB BF16, no HF token needed)
-#   3. Spin up the InferenceService predictor using the custom gfx1151 AIM image:
-#      192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
-#      aim-runtime reads the profile ConfigMap → execv into vLLM 0.19.2rc1
+#   1. Resolve qwen3-6-27b-r9700-gfx1151-latency (AIMClusterServiceTemplate / Profile)
+#   2. Reuse the shared AIMArtifact cache for hf://Qwen/Qwen3.6-27B (~51.8 GiB)
+#   3. Spin up the InferenceService predictor using the custom gfx1151 AIM image
 #
 # Full managed path: AIMService → InferenceService → aim-runtime → vLLM → gfx1151
-# No separate Deployment or AIMModel external endpoint needed.
 apiVersion: aim.eai.amd.com/v1alpha2
 kind: AIMService
 metadata:
   name: qwen3-6-27b
-  namespace: default
+  namespace: demo
 spec:
-  profile:
+  model:
+    name: qwen-qwen3-6-27b
+  template:
     name: qwen3-6-27b-r9700-gfx1151-latency
   caching:
-    mode: Dedicated
+    mode: Shared
   replicas: 1
+  env:
+    - name: AIM_ID
+      value: qwen/qwen3-6-27b

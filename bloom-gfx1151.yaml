@@ -1,8 +1,7 @@
 # Cluster Bloom reference config — Asus Z13 / Strix Halo (gfx1151)
-# Set DOMAIN to <node-ip>.nip.io before running (see docs/BLOOM_GFX1151_INSTALL.md)
+# DOMAIN = short hostname (stable across DHCP). See scripts/migrate-domain-hostname.sh.
 
-# Must match node IP + nip.io — also required by envoy-gateway-config CoreDNS rewrite
-DOMAIN: "192.168.32.13.nip.io"
+DOMAIN: "magnus-rog-flow-z13"
 FIRST_NODE: true
 GPU_NODE: true
 GPU_GFX1151: true

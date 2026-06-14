@@ -26,8 +26,12 @@ if [[ ! -f "$VALUES_FILE" ]]; then
 fi
 
 if [[ "$INSTALL_STUNNER" == "1" ]]; then
-  echo "Installing STUNner operator (once per cluster)..."
-  bash "$TELECOM_REPO/install-prerequisites.sh"
+  if kubectl get deployment stunner-gateway-operator-controller-manager -n stunner-system &>/dev/null; then
+    echo "STUNner operator already installed (stunner-system); skipping install-prerequisites.sh"
+  else
+    echo "Installing STUNner operator (once per cluster)..."
+    bash "$TELECOM_REPO/install-prerequisites.sh"
+  fi
 else
   echo "Skipping STUNner install (INSTALL_STUNNER=0)"
 fi
@@ -41,8 +45,14 @@ helm dependency build
 
 kubectl create namespace "$TELECOM_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
-BUILD_CPU_SPEECH="${BUILD_CPU_SPEECH:-1}"
 CTR="sudo /var/lib/rancher/rke2/bin/ctr --address /run/k3s/containerd/containerd.sock --namespace k8s.io"
+# Set TELECOM_SKIP_BUILD=1 to skip all local image rebuilds on redeploy.
+_skip="${TELECOM_SKIP_BUILD:-0}"
+BUILD_CPU_SPEECH="${BUILD_CPU_SPEECH:-$([ "$_skip" == "1" ] && echo 0 || echo 1)}"
+BUILD_TELECOM_FRONTEND="${BUILD_TELECOM_FRONTEND:-$([ "$_skip" == "1" ] && echo 0 || echo 1)}"
+BUILD_BSSGATEWAY="${BUILD_BSSGATEWAY:-$([ "$_skip" == "1" ] && echo 0 || echo 1)}"
+BUILD_TELECOM_AGENT="${BUILD_TELECOM_AGENT:-0}"
+
 if [[ "$BUILD_CPU_SPEECH" == "1" ]]; then
   echo "Building CPU STT/TTS images..."
   docker build -t telecom-stt-service:local "$EAI_ROOT/services/stt-service/"
@@ -53,9 +63,6 @@ if [[ "$BUILD_CPU_SPEECH" == "1" ]]; then
   docker save telecom-tts-service:local | $CTR images import -
 fi
 
-BUILD_TELECOM_FRONTEND="${BUILD_TELECOM_FRONTEND:-1}"
-BUILD_BSSGATEWAY="${BUILD_BSSGATEWAY:-1}"
-BUILD_TELECOM_AGENT="${BUILD_TELECOM_AGENT:-0}"
 if [[ "$BUILD_TELECOM_FRONTEND" == "1" ]]; then
   echo "Building patched frontend image (LLM page-load warmup + LiveKit WS proxy)..."
   docker build -t telecom-frontend:local "$EAI_ROOT/services/telecom-frontend/"
@@ -74,11 +81,8 @@ if [[ "$BUILD_TELECOM_AGENT" == "1" ]]; then
   docker save telecom-agent:local | $CTR images import -
 fi
 
-echo "Deploying Qwen LLM bridge and CPU STT/TTS services..."
-kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/qwen-llm-bridge.yaml"
-kubectl scale deployment qwen3-6-27b-vllm -n default --replicas=1 2>/dev/null || true
-kubectl rollout status deployment/qwen3-6-27b-vllm -n default --timeout=900s 2>/dev/null || \
-  echo "WARN: qwen3-6-27b-vllm not ready (run scripts/10-qwen3-6-27b.sh first)"
+echo "Ensuring Qwen LLM bridge (Workbench catalog Deploy or scripts/10)..."
+QWEN_BRIDGE_WAIT="${QWEN_BRIDGE_WAIT:-300}" bash "$EAI_ROOT/scripts/ensure-qwen-llm-bridge.sh"
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/stt-deployment.yaml" -n "$TELECOM_NAMESPACE"
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/tts-deployment.yaml" -n "$TELECOM_NAMESPACE"
 kubectl delete cronjob gemma-warmup -n "$TELECOM_NAMESPACE" --ignore-not-found

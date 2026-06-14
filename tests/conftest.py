@@ -27,8 +27,10 @@ def my_ip() -> str:
 
 
 @pytest.fixture(scope="session")
-def domain(my_ip: str) -> str:
-    return f"{my_ip}.nip.io"
+def domain() -> str:
+    """Hostname-based cluster domain (lowercase); matches scripts/lib/common.sh domain()."""
+    out = subprocess.check_output(["hostname", "-s"], text=True).strip()
+    return out.lower()
 
 
 @pytest.fixture(scope="session")

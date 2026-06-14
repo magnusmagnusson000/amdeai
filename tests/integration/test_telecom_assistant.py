@@ -108,7 +108,7 @@ def test_agent_uses_qwen_llm_config():
 
 
 def test_qwen_llm_bridge():
-    """LLM for telecom is the managed Qwen3.6-27B AIMService (stable bridge Service)."""
+    """LLM for telecom: stable bridge → Ready Qwen3.6-27B AIM predictor (Workbench or scripts/10)."""
     with port_forward("svc/qwen3-6-27b-llm", 18080, 80, namespace="default"):
         check_qwen_llm_models()
         chat = requests.post(

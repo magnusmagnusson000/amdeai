@@ -51,8 +51,20 @@ registry_host() {
   echo "$(hostname -s):32000"
 }
 
+# Stable cluster domain (lowercase short hostname). Gateway API rejects uppercase in
+# hostnames; matches the Kubernetes node name and survives DHCP IP changes.
+cluster_hostname() {
+  hostname -s | tr '[:upper:]' '[:lower:]'
+}
+
 domain() {
-  echo "$(my_ip).nip.io"
+  cluster_hostname
+}
+
+# Subdomains served by envoy-gateway (wildcard cert + /etc/hosts block).
+ui_hostnames() {
+  local d="$1"
+  echo "aiwbui.${d} aiwbapi.${d} airmui.${d} airmapi.${d} kc.${d} keycloak.${d} argocd.${d} gitea.${d} openbao.${d} k8s.${d} ${d}"
 }
 
 # Timestamped backups under $EAI_ROOT/backups/<step>/ (machine-local; do not commit).

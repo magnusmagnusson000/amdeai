@@ -105,3 +105,25 @@ fi
 echo ""
 echo "Done. RKE2 node-ip updated: $OLD_IP -> $NEW_IP"
 echo "Cluster accessible via: https://${HOSTNAME}:6443"
+
+# Refresh UI DNS (/etc/hosts) and Gateway LoadBalancer IP for hostname-based domain
+AMDEAI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -f "${AMDEAI_ROOT}/scripts/lib/common.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${AMDEAI_ROOT}/scripts/lib/common.sh"
+    export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+    bash "${AMDEAI_ROOT}/scripts/update-cluster-hosts.sh" "${NEW_IP}" "$(domain)" || true
+    if kubectl get gateway https -n envoy-gateway-system &>/dev/null; then
+        kubectl patch gateway https -n envoy-gateway-system --type=merge \
+            -p "{\"spec\":{\"addresses\":[{\"type\":\"IPAddress\",\"value\":\"${NEW_IP}\"}]}}" 2>/dev/null || true
+        svc=$(kubectl get svc -n envoy-gateway-system \
+            -l gateway.envoyproxy.io/owning-gateway-name=https \
+            -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+        [[ -n "${svc}" ]] && kubectl annotate svc "${svc}" -n envoy-gateway-system \
+            metallb.universe.tf/loadBalancerIPs="${NEW_IP}" --overwrite 2>/dev/null || true
+    fi
+    if kubectl get ipaddresspool local-pool -n metallb-system &>/dev/null; then
+        kubectl patch ipaddresspool local-pool -n metallb-system --type=merge \
+            -p "{\"spec\":{\"addresses\":[\"${NEW_IP}/32\"]}}" 2>/dev/null || true
+    fi
+fi

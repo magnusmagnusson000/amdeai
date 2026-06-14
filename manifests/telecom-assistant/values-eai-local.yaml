@@ -5,7 +5,9 @@
 # Avoid Docker Hub rate limits when images are pre-imported into RKE2 containerd.
 imagePullPolicy: IfNotPresent
 
-# --- LLM: managed Qwen3.6-27B AIMService (vLLM on gfx1151) replaces GPT OSS 120B ---
+# --- LLM: Qwen3.6-27B via stable bridge (Workbench catalog Deploy or scripts/10) ---
+# Deploy Qwen from AI Workbench first, then run scripts/09-telecom-assistant.sh.
+# ensure-qwen-llm-bridge.sh discovers the Ready predictor by catalog model label.
 llm:
   existingService: "http://qwen3-6-27b-llm.default.svc.cluster.local"
 

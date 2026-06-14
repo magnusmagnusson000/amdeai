@@ -21,7 +21,7 @@ This document records every change required to run the [AMD Telecom Assistant bl
 |------|---------|
 | `~/eai-build/solution-blueprints` | Upstream blueprint (cloned, not forked) |
 | `manifests/telecom-assistant/values-eai-local.yaml` | gfx1151-specific Helm overrides (tracked in amdeai) |
-| `manifests/telecom-assistant/qwen-llm-bridge.yaml` | Stable ClusterIP → hybrid `qwen3-6-27b-vllm` Deployment (AIM weights) |
+| `manifests/telecom-assistant/qwen-llm-bridge.yaml` | Stable ClusterIP + dynamic Endpoints → Ready Qwen3.6-27B AIM predictor |
 | `telecom-assistant` namespace | Isolated deploy target |
 
 ---
@@ -42,12 +42,12 @@ The parent chart deploys sub-chart `llm` → image `amdenterpriseai/aim-openai-g
 
 The chart sets agent `LLM_BASE_URL` to `{existingService}/v1` via `aimchart-llm.url`.
 
-**Prerequisite:** `bash scripts/10-qwen3-6-27b.sh` — deploys `AIMService/qwen3-6-27b` (Running) with KServe predictor on gfx1151.
+**Prerequisite:** Deploy **Qwen/Qwen3.6-27B** from the **AI Workbench model catalog** (Deploy button), wait until the AIMService predictor is Ready. Alternatively use `bash scripts/10-qwen3-6-27b.sh` for the scripted `default/qwen3-6-27b` AIMService.
 
 ### Additional changes for Qwen AIM (beyond Helm values)
 
-1. **Stable bridge Service** — [`manifests/telecom-assistant/qwen-llm-bridge.yaml`](../manifests/telecom-assistant/qwen-llm-bridge.yaml)  
-   KServe creates a predictor Service with a hash suffix that changes on InferenceService recreation; the KServe webhook can also fail under disk pressure. The bridge selects the hybrid **`qwen3-6-27b-vllm`** Deployment (from `scripts/10-qwen3-6-27b.sh`), reuses AIM-downloaded weights, and exposes port 80 → container 8000.
+1. **Stable bridge Service** — [`manifests/telecom-assistant/qwen-llm-bridge.yaml`](../manifests/telecom-assistant/qwen-llm-bridge.yaml) + [`scripts/ensure-qwen-llm-bridge.sh`](../scripts/ensure-qwen-llm-bridge.sh)  
+   Workbench creates AIMServices like `demo/wb-aim-*` with dynamic names. Telecom keeps a **fixed DNS name** (`qwen3-6-27b-llm.default.svc.cluster.local`) and the ensure script writes **Endpoints** to whichever predictor pod is Ready, matched cluster-wide by catalog model label `aim.eai.amd.com/model=qwen-qwen3-6-27b`. Newest Ready predictor wins (your latest Workbench Deploy). Set `QWEN_USE_HYBRID_VLLM=1` only for the legacy hybrid `qwen3-6-27b-vllm` Deployment.
 
 2. **Agent patches** — [`services/telecom-agent/agent.py`](../services/telecom-agent/agent.py) mounted via ConfigMap ([`scripts/patch-telecom-agent.sh`](../scripts/patch-telecom-agent.sh)):
    - LLM read timeout **120s** (Qwen first-token latency on 27B)
@@ -107,16 +107,20 @@ Unchanged from prior gfx1151 adaptation: `mlstorage`, port-forward phase 1, STUN
 
 ---
 
-## 6. Deploy command
+## 6. Deploy command (demo workflow)
 
 ```bash
-# 1. Ensure Qwen AIM is Running
-kubectl get aimservice qwen3-6-27b -n default
-kubectl get svc qwen3-6-27b-llm -n default
+# 1. AI Workbench → model catalog → Qwen/Qwen3.6-27B → Deploy → wait until Running
 
-# 2. Deploy telecom stack
-bash scripts/09-telecom-assistant.sh
+# 2. Wire bridge to that predictor (auto-run by step 3; can re-run anytime)
+bash scripts/ensure-qwen-llm-bridge.sh
+kubectl get endpoints qwen3-6-27b-llm -n default
+
+# 3. Deploy telecom stack (skip rebuilds if images already in containerd)
+TELECOM_SKIP_BUILD=1 bash scripts/09-telecom-assistant.sh
 ```
+
+Step 3 waits up to 5 minutes for a Ready Qwen predictor if Workbench is still starting.
 
 ---
 

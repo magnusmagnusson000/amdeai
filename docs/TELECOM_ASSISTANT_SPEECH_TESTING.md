@@ -2,11 +2,11 @@
 
 Automated Playwright tests cover UI, APIs, LiveKit signaling, and **text chat** via the Client Simulator. **Microphone STT and speaker TTS** require manual validation in the browser.
 
-STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`). The LLM is **Qwen3.6-27B** via managed `AIMService` (in-cluster vLLM on gfx1151).
+STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`). The LLM is **Qwen3.6-27B** — deploy it from the **AI Workbench catalog** (Deploy), then start the telecom blueprint.
 
 **Prerequisites doc:** [`TELECOM_ASSISTANT_GFX1151_ADAPTATION.md`](TELECOM_ASSISTANT_GFX1151_ADAPTATION.md)  
-**LLM deploy:** [`QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md`](QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md)  
-**Deploy:** `bash scripts/09-telecom-assistant.sh`
+**LLM catalog / AIM details:** [`QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md`](QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md)  
+**Deploy:** Workbench Deploy first, then `TELECOM_SKIP_BUILD=1 bash scripts/09-telecom-assistant.sh`
 
 ---
 
@@ -16,8 +16,9 @@ STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`). The LLM
 
 ```bash
 kubectl get pods -n telecom-assistant
-kubectl get aimservice qwen3-6-27b -n default
-kubectl get svc qwen3-6-27b-llm -n default
+kubectl get aimservice -A | grep -i qwen
+kubectl get endpoints qwen3-6-27b-llm -n default
+bash scripts/ensure-qwen-llm-bridge.sh   # if endpoints are empty after Workbench Deploy
 ```
 
 Minimum for speech:

@@ -28,7 +28,7 @@
 #
 # Usage:
 #   bash scripts/10-qwen3-6-27b.sh
-#   AIM_NAMESPACE=default bash scripts/10-qwen3-6-27b.sh
+#   AIM_NAMESPACE=demo bash scripts/10-qwen3-6-27b.sh
 #   SKIP_MANAGED_BUILD=1 bash scripts/10-qwen3-6-27b.sh  # hybrid fallback
 #
 # See: docs/GFX1151_CUSTOM_AIM_DEPLOYMENT_GUIDE.md
@@ -37,7 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
-AIM_NAMESPACE="${AIM_NAMESPACE:-default}"
+AIM_NAMESPACE="${AIM_NAMESPACE:-demo}"
 PROFILE_NAME="qwen3-6-27b-r9700-gfx1151-latency"
 SERVICE_NAME="qwen3-6-27b"
 MODEL_NAME="qwen-qwen3-6-27b"
