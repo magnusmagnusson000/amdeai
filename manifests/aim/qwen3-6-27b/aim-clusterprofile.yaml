@@ -11,7 +11,7 @@
 #   - max-model-len: 32768    practical limit on gfx1151 (model supports 262K)
 #   - max-num-seqs: 16        reduced from 32 for MTP speculative decoding stability
 #
-# image: 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
+# image: ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-27b:0.11-therock  (REGISTRY_HOST = hostname:32000)
 #   Custom image built from images/aim-gfx1151-qwen3-6-27b/Dockerfile.
 #   Layers aim-runtime (pure Python) from aim-base:0.11 onto kyuz0 vLLM stack.
 #   This is what enables the managed AIMService flow on gfx1151.
@@ -42,7 +42,7 @@ spec:
       cpu: "4"
       memory: 64Gi
 
-  image: 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
+  image: ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-27b:0.11-therock
 
   engineArgs:
     tensor-parallel-size: "1"

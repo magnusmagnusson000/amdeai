@@ -13,7 +13,7 @@
 #   Layer 2 — Weight download:
 #     AIMService qwen3-6-27b → AIMArtifact download job (~55.6 GiB)
 #   Layer 3 — Inference (MANAGED — no separate Deployment needed):
-#     InferenceService predictor uses 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
+#     InferenceService predictor uses ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-27b:0.11-therock
 #     aim-runtime reads profile ConfigMap → execv into vLLM 0.19.2rc1 (gfx1151)
 #
 # HYBRID FALLBACK:
@@ -24,7 +24,7 @@
 #   - AIM Engine operator running (kubectl get crd aimservices.aim.eai.amd.com)
 #   - scripts/03b-gfx1151-aim-labels.sh applied (R9700 accelerator label on node)
 #   - ~60 GiB free disk space for weights PVC
-#   - Local registry running at 192.168.32.13:32000 (auto-deployed by this script)
+#   - Local registry running at $(hostname -s):32000 (auto-deployed by this script)
 #
 # Usage:
 #   bash scripts/10-qwen3-6-27b.sh
@@ -44,7 +44,8 @@ MODEL_NAME="qwen-qwen3-6-27b"
 MANIFEST_DIR="$EAI_ROOT/manifests/aim/qwen3-6-27b"
 NODE_PORT=30401
 NODE_IP="$(my_ip)"
-LOCAL_REGISTRY="${LOCAL_REGISTRY:-192.168.32.13:32000}"
+LOCAL_REGISTRY="${LOCAL_REGISTRY:-$(registry_host)}"
+export REGISTRY_HOST="${LOCAL_REGISTRY}"
 AIM_IMAGE="${AIM_IMAGE:-${LOCAL_REGISTRY}/aim-gfx1151-qwen3-6-27b:0.11-therock}"
 SKIP_MANAGED_BUILD="${SKIP_MANAGED_BUILD:-0}"
 
@@ -111,6 +112,28 @@ REGEOF
     kubectl rollout status deployment/registry -n kube-system --timeout=120s
   fi
 
+  # Ensure containerd treats the hostname registry as insecure (stable across DHCP)
+  REG_HOST="$(registry_host)"
+  if ! sudo grep -q "\"${REG_HOST}\"" /etc/rancher/rke2/registries.yaml 2>/dev/null; then
+    echo "Updating /etc/rancher/rke2/registries.yaml for ${REG_HOST}..."
+    sudo tee /etc/rancher/rke2/registries.yaml > /dev/null <<EOF
+mirrors:
+  "${REG_HOST}":
+    endpoint:
+      - "http://localhost:32000"
+  "localhost:32000":
+    endpoint:
+      - "http://localhost:32000"
+configs:
+  "${REG_HOST}":
+    tls:
+      insecure_skip_verify: true
+  "localhost:32000":
+    tls:
+      insecure_skip_verify: true
+EOF
+  fi
+
   # Check if image already pushed (faster subsequent runs)
   if curl -sf "http://${LOCAL_REGISTRY}/v2/aim-gfx1151-qwen3-6-27b/tags/list" 2>/dev/null \
     | python3 -c "import sys,json; t=json.load(sys.stdin).get('tags',[]); sys.exit(0 if '0.11-therock' in t else 1)" 2>/dev/null; then
@@ -138,13 +161,13 @@ fi
 # --- Step 2: Apply AIMClusterModel (catalog entry) ---
 echo ""
 echo "--- Step 2: AIMClusterModel ---"
-kubectl apply -f "${MANIFEST_DIR}/aim-clustermodel.yaml"
+envsubst '${REGISTRY_HOST}' < "${MANIFEST_DIR}/aim-clustermodel.yaml" | kubectl apply -f -
 kubectl get aimclustermodel "${MODEL_NAME}" 2>/dev/null || true
 
 # --- Step 3: Apply AIMClusterProfile (runtime config) ---
 echo ""
 echo "--- Step 3: AIMClusterProfile ---"
-kubectl apply -f "${MANIFEST_DIR}/aim-clusterprofile.yaml"
+envsubst '${REGISTRY_HOST}' < "${MANIFEST_DIR}/aim-clusterprofile.yaml" | kubectl apply -f -
 
 echo "Waiting for AIMClusterProfile to become Ready (up to ${PROFILE_READY_TIMEOUT}s)..."
 ELAPSED=0

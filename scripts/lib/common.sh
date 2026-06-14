@@ -45,6 +45,12 @@ my_ip() {
   hostname -I | awk '{print $1}'
 }
 
+# Stable local registry address (NodePort 32000). Hostname resolves on the node
+# via /etc/hosts and survives DHCP IP changes — unlike a bare IPv4 address.
+registry_host() {
+  echo "$(hostname -s):32000"
+}
+
 domain() {
   echo "$(my_ip).nip.io"
 }

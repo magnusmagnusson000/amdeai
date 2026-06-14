@@ -769,8 +769,14 @@ The deployment consumes significant disk:
 | Docker build cache | `/var/lib/docker/` | 1–5 GiB |
 
 To prevent the kubelet `disk-pressure` taint (`node.kubernetes.io/disk-pressure: NoSchedule`)
-keep at least **15 GiB free** (the default `evictionMinimumReclaim` is 10% above the 5% hard
-threshold = ~15% free on this cluster):
+keep at least **15 GiB free**. On gfx1151 Bloom, apply absolute eviction thresholds (instead of
+default ~10–15% of root — ~62–93 GiB on a 624 GiB disk):
+
+```bash
+bash scripts/configure-kubelet-disk-eviction.sh
+```
+
+This sets `nodefs.available<15Gi` / `imagefs.available<15Gi` hard eviction. Operational checks:
 
 ```bash
 # Check free space

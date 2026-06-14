@@ -12,16 +12,16 @@ metadata:
     aim.eai.amd.com/origin: manual
     aim.eai.amd.com/platform: gfx1151
   annotations:
-    aim.eai.amd.com/source-registry: 192.168.32.13:32000
+    aim.eai.amd.com/source-registry: ${REGISTRY_HOST}
     aim.eai.amd.com/source-repository: aim-gfx1151-qwen3-6-27b
     aim.eai.amd.com/source-tag: "0.11-therock"
 spec:
-  image: 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
+  image: ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-27b:0.11-therock
   discovery:
     extractMetadata: false
     createServiceTemplates: false
   imageMetadata:
-    baseImageRef: 192.168.32.13:32000/aim-gfx1151-qwen3-6-27b:0.11-therock
+    baseImageRef: ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-27b:0.11-therock
     model:
       canonicalName: Qwen/Qwen3.6-27B
       hfTokenRequired: false
