@@ -122,8 +122,26 @@ if [[ -f "${AMDEAI_ROOT}/scripts/lib/common.sh" ]]; then
         [[ -n "${svc}" ]] && kubectl annotate svc "${svc}" -n envoy-gateway-system \
             metallb.universe.tf/loadBalancerIPs="${NEW_IP}" --overwrite 2>/dev/null || true
     fi
-    if kubectl get ipaddresspool local-pool -n metallb-system &>/dev/null; then
-        kubectl patch ipaddresspool local-pool -n metallb-system --type=merge \
-            -p "{\"spec\":{\"addresses\":[\"${NEW_IP}/32\"]}}" 2>/dev/null || true
+    for pool in cluster-bloom-ip-pool local-pool; do
+        if kubectl get ipaddresspool "${pool}" -n metallb-system &>/dev/null; then
+            kubectl patch ipaddresspool "${pool}" -n metallb-system --type=merge \
+                -p "{\"spec\":{\"addresses\":[\"${NEW_IP}/32\"]}}" 2>/dev/null || true
+            echo "MetalLB pool ${pool} -> ${NEW_IP}/32"
+        fi
+    done
+    manifest=/var/lib/rancher/rke2/server/manifests/metallb-address.yaml
+    if [[ -f "${manifest}" ]] && grep -q '192\.168\.' "${manifest}" 2>/dev/null; then
+        sed -i "s|- [0-9.]\+/32|- ${NEW_IP}/32|" "${manifest}" 2>/dev/null || true
+        echo "RKE2 metallb-address.yaml -> ${NEW_IP}/32"
     fi
+    _domain="$(domain)"
+    _hosts="$(ui_hostnames "${_domain}")"
+    echo ""
+    echo "LAN access (other devices on your network):"
+    echo "  Ping to ${NEW_IP} works, but curl https://${NEW_IP} will fail."
+    echo "  The gateway requires hostnames like aiwbui.${_domain} (TLS SNI)."
+    echo "  Add to /etc/hosts on each LAN client:"
+    echo "    ${NEW_IP} ${_hosts}"
+    echo "  Then: https://aiwbui.${_domain}/  (accept self-signed cert)"
+    echo "  Test: curl -sk -o /dev/null -w '%{http_code}\\n' https://aiwbui.${_domain}/"
 fi

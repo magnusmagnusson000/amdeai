@@ -28,6 +28,7 @@ CATALOG_ONLY=1 bash scripts/10-qwen3-6-27b.sh
 # 4. Post-deploy fixes (required on gfx1151 Bloom)
 bash scripts/ensure-qwen-profile-mount.sh demo
 bash scripts/fix-aim-httproute-gateway.sh demo
+bash scripts/ensure-qwen-chattable.sh
 
 # 5. Validate
 kubectl get aimservice -n demo
@@ -152,9 +153,12 @@ bash scripts/ensure-qwen-profile-mount.sh demo
 
 # HTTPRoute parent gateway (fixes AIMService stuck Starting)
 bash scripts/fix-aim-httproute-gateway.sh demo
+
+# Chat model selector (fixes empty "Select model" dropdown)
+bash scripts/ensure-qwen-chattable.sh
 ```
 
-**Why:** The AIM operator often omits the profile volume, and HTTPRoutes may reference deprecated `kgateway-system` while the live Gateway is in `envoy-gateway-system`.
+**Why:** The AIM operator often omits the profile volume, HTTPRoutes may reference deprecated `kgateway-system`, and `spec.discovery.extractMetadata: false` prevents the `chat` tag from reaching `status.imageMetadata` (required by Workbench `/chattable`).
 
 ### 8. Wait for Running
 
@@ -225,8 +229,9 @@ Check disk after cleanup: `df -h /` (target **≥ 120 GiB** free before a full Q
 | Stack + login + catalog + Deploy dialog (cancel) | `bash scripts/run-e2e-stack-validation.sh` | After catalog prep; safe for CI |
 | One-time full Deploy confirm (~52 GiB) | `E2E_QWEN_DEPLOY=1 pytest tests/e2e/test_aiwb_ui.py::test_qwen_deploy_confirm_full -v -s` | Manual only; deletes existing deploy |
 | Card status (model already Running) | `E2E_AIWB=1 pytest tests/e2e/test_aiwb_ui.py::test_qwen_card_status -v` | After successful deploy |
+| Chat with deployed Qwen | `E2E_AIWB=1 pytest tests/e2e/test_aiwb_ui.py::test_qwen_chat -v` | After deploy + `ensure-qwen-chattable.sh` |
 
-The full deploy test runs post-deploy scripts (`ensure-qwen-profile-mount`, waits for `Running`). Generalize selectors when adding a non-Qwen model.
+The full deploy test runs post-deploy scripts (`ensure-qwen-profile-mount`, `ensure-qwen-chattable`, waits for `Running`). Generalize selectors when adding a non-Qwen model.
 
 ---
 
@@ -243,6 +248,7 @@ The full deploy test runs post-deploy scripts (`ensure-qwen-profile-mount`, wait
 | `Insufficient amd.com/gpu` | Another pod holds GPU | `kubectl get pods -A -o wide \| grep Running` on GPU workloads |
 | UI **403** / Keycloak OOM | Disk pressure | `bash scripts/fix-web-uis.sh` |
 | Telecom agent LLM timeout | Bridge endpoints empty | `bash scripts/ensure-qwen-llm-bridge.sh` |
+| Chat **Select model** empty; `/chattable` returns `[]` | `chat` tag only in spec, not `status.imageMetadata` (often `extractMetadata: false`) | `bash scripts/ensure-qwen-chattable.sh`; avoid `extractMetadata: false` when using `spec.imageMetadata` |
 | E2E waits forever on `wb-aim-*` | Test filtered on name `qwen` only | Match `spec.model.name` or `aim.eai.amd.com/model` label |
 
 ### Useful commands

@@ -21,9 +21,11 @@ _SKIP_QWEN_DEPLOY = pytest.mark.skipif(
 )
 
 _CATALOG_URL_PATH = "/demo/models/aim-catalog"
+_CHAT_URL_PATH = "/demo/chat"
 _EAI_ROOT = Path(__file__).resolve().parents[2]
 _QWEN_DEPLOY_MIN_GB = 120
 _QWEN_DEPLOY_TIMEOUT_S = 5400  # 90 min — download + model load
+_QWEN_CHAT_TIMEOUT_S = 180
 
 
 def _keycloak_login(page: Page, domain: str, username: str, password: str) -> None:
@@ -175,6 +177,28 @@ def _wait_qwen_aimservice_running(namespace: str = "demo", timeout_s: int = _QWE
     pytest.fail(f"Qwen AIMService did not reach Running within {timeout_s}s (last status={last_status!r})")
 
 
+def _ensure_qwen_chattable_metadata() -> None:
+    """Publish chat tag on AIMClusterModel status (Workbench chattable API)."""
+    script = _EAI_ROOT / "scripts" / "ensure-qwen-chattable.sh"
+    if script.is_file():
+        subprocess.run(["bash", str(script)], check=False, timeout=90)
+
+
+def _chattable_response(page: Page, domain: str, namespace: str = "demo") -> dict:
+    resp = page.request.get(f"https://aiwbui.{domain}/api/namespaces/{namespace}/chattable")
+    assert resp.ok, f"chattable API failed: HTTP {resp.status}"
+    return resp.json()
+
+
+def _select_qwen_chat_model(page: Page) -> None:
+    """Open Chat model dropdown and select the Qwen catalog entry."""
+    page.locator("text=Select model").last.click(force=True)
+    option = page.locator('[role="option"]').filter(has_text=re.compile(r"Qwen", re.I))
+    expect(option.first).to_be_visible(timeout=15000)
+    option.first.click()
+    expect(page.locator('[data-testid="chat-input"]')).to_be_enabled(timeout=15000)
+
+
 @_SKIP
 @pytest.mark.order(2)
 def test_keycloak_login(page: Page, domain: str, devuser_password: str | None):
@@ -322,6 +346,10 @@ def test_qwen_deploy_confirm_full(page: Page, domain: str, devuser_password: str
     if not running:
         pytest.fail(f"Qwen AIMService did not reach Running within {_QWEN_DEPLOY_TIMEOUT_S}s")
 
+    chattable_script = _EAI_ROOT / "scripts" / "ensure-qwen-chattable.sh"
+    if chattable_script.is_file():
+        subprocess.run(["bash", str(chattable_script)], check=False, timeout=90)
+
     page.reload()
     page.wait_for_load_state("networkidle", timeout=15000)
     expect(page.locator("body")).to_contain_text(re.compile(r"Running|Deployed", re.I), timeout=60000)
@@ -351,6 +379,42 @@ def test_qwen_card_status(page: Page, domain: str, devuser_password: str | None)
     )
     expect(page.locator("body")).not_to_contain_text(
         re.compile(r"500|502|connection refused", re.I)
+    )
+
+
+@_SKIP
+@pytest.mark.order(6)
+def test_qwen_chat(page: Page, domain: str, devuser_password: str | None):
+    """Chat UI: select deployed Qwen and receive a model response.
+
+    Requires a Running Qwen AIMService (wb-aim-*) in demo. Ensures the catalog
+    model exposes the chat tag in status.imageMetadata so /chattable lists it.
+    """
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    if not _qwen_aimservice_names():
+        pytest.skip("No Qwen AIMService in demo — deploy from catalog first")
+
+    _ensure_qwen_chattable_metadata()
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CHAT_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=30000)
+
+    chattable = _chattable_response(page, domain)
+    if not chattable.get("aimServices"):
+        pytest.fail(
+            "chattable API returned no AIM services — run: bash scripts/ensure-qwen-chattable.sh"
+        )
+
+    _select_qwen_chat_model(page)
+    prompt = "Reply with exactly: pong"
+    chat_input = page.locator('[data-testid="chat-input"]')
+    chat_input.fill(prompt)
+    chat_input.press("Enter")
+
+    expect(page.locator("body")).to_contain_text("pong", timeout=_QWEN_CHAT_TIMEOUT_S * 1000)
+    expect(page.locator("body")).not_to_contain_text(
+        re.compile(r"500|502|connection refused|failed to fetch", re.I)
     )
 
 

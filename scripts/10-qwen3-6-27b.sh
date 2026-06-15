@@ -37,6 +37,7 @@
 # Post-Workbench Deploy (always on gfx1151 Bloom):
 #   bash scripts/ensure-qwen-profile-mount.sh demo
 #   bash scripts/fix-aim-httproute-gateway.sh demo
+#   bash scripts/ensure-qwen-chattable.sh
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"

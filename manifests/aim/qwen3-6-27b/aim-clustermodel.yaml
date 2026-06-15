@@ -18,7 +18,9 @@ metadata:
 spec:
   image: ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-27b:0.11-therock
   discovery:
-    extractMetadata: false
+    # Do not set extractMetadata: false when spec.imageMetadata is provided —
+    # the operator would skip copying tags (e.g. "chat") into status, and Chat UI
+    # would not list the deployed AIMService.
     createServiceTemplates: false
   imageMetadata:
     baseImageRef: ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-27b:0.11-therock

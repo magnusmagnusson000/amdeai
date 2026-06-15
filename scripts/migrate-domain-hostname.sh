@@ -108,13 +108,24 @@ update_cluster_hosts() {
 }
 
 update_metallb_pool() {
-  if ! kubectl get ipaddresspool local-pool -n metallb-system &>/dev/null; then
-    echo "  skip MetalLB (local-pool not found)"
-    return 0
+  local patched=0
+  for pool in cluster-bloom-ip-pool local-pool; do
+    if kubectl get ipaddresspool "${pool}" -n metallb-system &>/dev/null; then
+      kubectl patch ipaddresspool "${pool}" -n metallb-system --type=merge \
+        -p "{\"spec\":{\"addresses\":[\"${NODE_IP}/32\"]}}"
+      echo "  MetalLB ${pool} -> ${NODE_IP}/32"
+      patched=1
+    fi
+  done
+  if [[ "${patched}" -eq 0 ]]; then
+    echo "  skip MetalLB (no known pool found)"
   fi
-  kubectl patch ipaddresspool local-pool -n metallb-system --type=merge \
-    -p "{\"spec\":{\"addresses\":[\"${NODE_IP}/32\"]}}"
-  echo "  MetalLB local-pool -> ${NODE_IP}/32"
+  local manifest=/var/lib/rancher/rke2/server/manifests/metallb-address.yaml
+  if [[ -f "${manifest}" ]] && grep -q '192\.168\.' "${manifest}" 2>/dev/null; then
+    sed -i "s|- [0-9.]\+/32|- ${NODE_IP}/32|" "${manifest}" 2>/dev/null \
+      || sudo sed -i "s|- [0-9.]\+/32|- ${NODE_IP}/32|" "${manifest}" || true
+    echo "  RKE2 metallb-address.yaml -> ${NODE_IP}/32"
+  fi
 }
 
 update_gateway_lb() {
