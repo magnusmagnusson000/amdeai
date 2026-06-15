@@ -2,11 +2,22 @@
 
 Automated Playwright tests cover UI, APIs, LiveKit signaling, and **text chat** via the Client Simulator. **Microphone STT and speaker TTS** require manual validation in the browser.
 
-STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`). The LLM is **Qwen3.6-27B** — deploy it from the **AI Workbench catalog** (Deploy), then start the telecom blueprint.
+STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`). The LLM is **Qwen3.6-27B** — deploy from the **AI Workbench catalog** (see playbook below), then start telecom.
 
+**Model deploy playbook:** [`AIM_CATALOG_MODEL_DEPLOY_GFX1151.md`](AIM_CATALOG_MODEL_DEPLOY_GFX1151.md)  
 **Prerequisites doc:** [`TELECOM_ASSISTANT_GFX1151_ADAPTATION.md`](TELECOM_ASSISTANT_GFX1151_ADAPTATION.md)  
-**LLM catalog / AIM details:** [`QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md`](QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md)  
-**Deploy:** Workbench Deploy first, then `TELECOM_SKIP_BUILD=1 bash scripts/09-telecom-assistant.sh`
+**Qwen-specific details:** [`QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md`](QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md)
+
+**Typical order:**
+
+```bash
+CATALOG_ONLY=1 bash scripts/10-qwen3-6-27b.sh          # catalog CRs (once)
+# AI Workbench → Deploy Qwen on /demo/models/aim-catalog
+bash scripts/ensure-qwen-profile-mount.sh demo
+bash scripts/fix-aim-httproute-gateway.sh demo
+bash scripts/ensure-qwen-llm-bridge.sh
+TELECOM_SKIP_BUILD=1 bash scripts/09-telecom-assistant.sh
+```
 
 ---
 
@@ -15,10 +26,9 @@ STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`). The LLM
 ### 1. Confirm stack is up
 
 ```bash
-kubectl get pods -n telecom-assistant
-kubectl get aimservice -A | grep -i qwen
+kubectl get aimservice -n demo                    # expect Running (wb-aim-*)
 kubectl get endpoints qwen3-6-27b-llm -n default
-bash scripts/ensure-qwen-llm-bridge.sh   # if endpoints are empty after Workbench Deploy
+bash scripts/ensure-qwen-llm-bridge.sh            # if endpoints empty
 ```
 
 Minimum for speech:
@@ -79,7 +89,7 @@ Allow microphone permission when prompted.
 |---------|-------|
 | UI error on connect | Frontend logs; `LIVEKIT_PROXY_ENABLED=1` in frontend env |
 | WebSocket 101 but no audio | WebRTC/TURN (STUNner LB); ZScaler may block UDP |
-| LLM timeout in agent log | `kubectl get aimservice qwen3-6-27b`; run `bash scripts/warmup-llm.sh` |
+| LLM timeout in agent log | `kubectl get aimservice -n demo`; `bash scripts/ensure-qwen-llm-bridge.sh`; `bash scripts/warmup-llm.sh` |
 | STT/TTS 422 | Agent `STT_BASE_URL` / `TTS_BASE_URL` → `http://telecom-stt/v1`, `http://telecom-tts/v1` |
 | Slow first reply | Normal for cold vLLM; warmup CronJob + frontend warmup mitigate |
 
@@ -92,7 +102,7 @@ kubectl logs -f deploy/aimsb-telecom-assistant-eai-telecom-agent -n telecom-assi
 Qwen predictor:
 
 ```bash
-kubectl logs -n default -l aim.eai.amd.com/service.name=qwen3-6-27b,component=predictor --tail=50
+kubectl logs -n demo -l component=predictor --tail=50
 ```
 
 CPU speech services can stay running alongside the Qwen GPU predictor; they do not use the GPU.

@@ -25,7 +25,6 @@ run_step "$SCRIPT_DIR/05a-cluster-forge.sh"
 run_step "$SCRIPT_DIR/05b-kaiwo.sh"
 run_step "$SCRIPT_DIR/06a-aim-engine.sh"
 run_step "$SCRIPT_DIR/06b-airm-workbench.sh"
-run_step "$SCRIPT_DIR/07-llama-cpp.sh"
 
 source /home/magnus/projects/venvs/amd/bin/activate
 cd "$(dirname "$SCRIPT_DIR")"

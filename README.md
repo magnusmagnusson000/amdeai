@@ -29,6 +29,8 @@ Optional after Bloom: `bash scripts/07-llama-cpp.sh` for local Workbench chat vi
 
 **Login:** AIWB and AIRM use `devuser@<IP>.nip.io` via Keycloak SSO. See [Retrieve credentials](docs/BLOOM_GFX1151_INSTALL.md#retrieve-credentials) for password commands.
 
+**Deploy a catalog model (e.g. Qwen3.6-27B):** [docs/AIM_CATALOG_MODEL_DEPLOY_GFX1151.md](docs/AIM_CATALOG_MODEL_DEPLOY_GFX1151.md)
+
 ---
 
 ## Alternative — k3s script pipeline (lab / debug)

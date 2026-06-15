@@ -26,6 +26,8 @@ spec:
       model: R9700
       requests: 1
   env:
+    - name: AIM_ID
+      value: qwen/qwen3-6-27b
     - name: AIM_GPU_MODEL
       value: R9700
     - name: AIM_GPU_COUNT

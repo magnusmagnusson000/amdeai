@@ -8,6 +8,7 @@ from playwright.sync_api import Page, expect
 
 
 @pytest.mark.skipif(not __import__("os").environ.get("E2E_AIRM", ""), reason="Set E2E_AIRM=1")
+@pytest.mark.order(3)
 def test_airm_login(page: Page, domain: str, devuser_password: str | None):
     if not devuser_password:
         pytest.skip("DevUser credentials not ready")

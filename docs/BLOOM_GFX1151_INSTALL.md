@@ -375,10 +375,19 @@ kubectl get pods -A | grep -vE 'Running|Completed'
 pytest tests/integration/ -v
 bash scripts/validate-hip-gfx1151.sh
 
-# UI E2E (Keycloak SSO)
-python3 -m venv .venv-e2e && .venv-e2e/bin/pip install playwright pytest pytest-playwright
-.venv-e2e/bin/playwright install chromium
-E2E_AIWB=1 E2E_AIRM=1 .venv-e2e/bin/pytest tests/e2e/test_aiwb_ui.py tests/e2e/test_airm_ui.py -v
+# UI E2E — sequential stack validation (cluster + Keycloak + Qwen catalog Deploy dialog)
+bash scripts/run-e2e-stack-validation.sh
+
+# Model deploy playbook (catalog prep, Workbench Deploy, post-deploy fixes):
+# docs/AIM_CATALOG_MODEL_DEPLOY_GFX1151.md
+
+# Or manually:
+E2E_STACK=1 E2E_AIWB=1 E2E_AIRM=1 pytest tests/e2e/test_stack_health.py \
+  tests/e2e/test_aiwb_ui.py tests/e2e/test_airm_ui.py -v --order-scope=session \
+  -k "stack_cluster or stack_qwen or stack_https or keycloak_login or airm_login or aim_catalog_shows_qwen or deploy_qwen_model"
+
+# One-time full Qwen Deploy confirm (~52 GiB download, NOT in default suite):
+E2E_QWEN_DEPLOY=1 pytest tests/e2e/test_aiwb_ui.py::test_qwen_deploy_confirm_full -v -s
 ```
 
 ### Service endpoints (Z13)

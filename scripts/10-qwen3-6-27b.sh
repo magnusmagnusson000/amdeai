@@ -30,8 +30,13 @@
 #   bash scripts/10-qwen3-6-27b.sh
 #   AIM_NAMESPACE=demo bash scripts/10-qwen3-6-27b.sh
 #   SKIP_MANAGED_BUILD=1 bash scripts/10-qwen3-6-27b.sh  # hybrid fallback
+#   CATALOG_ONLY=1 bash scripts/10-qwen3-6-27b.sh       # catalog CRs only (Workbench Deploy)
 #
-# See: docs/GFX1151_CUSTOM_AIM_DEPLOYMENT_GUIDE.md
+# See: docs/AIM_CATALOG_MODEL_DEPLOY_GFX1151.md (playbook)
+#      docs/QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md (Qwen details)
+# Post-Workbench Deploy (always on gfx1151 Bloom):
+#   bash scripts/ensure-qwen-profile-mount.sh demo
+#   bash scripts/fix-aim-httproute-gateway.sh demo
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
@@ -48,6 +53,7 @@ LOCAL_REGISTRY="${LOCAL_REGISTRY:-$(registry_host)}"
 export REGISTRY_HOST="${LOCAL_REGISTRY}"
 AIM_IMAGE="${AIM_IMAGE:-${LOCAL_REGISTRY}/aim-gfx1151-qwen3-6-27b:0.11-therock}"
 SKIP_MANAGED_BUILD="${SKIP_MANAGED_BUILD:-0}"
+CATALOG_ONLY="${CATALOG_ONLY:-0}"
 
 PROFILE_READY_TIMEOUT=120
 DOWNLOAD_TIMEOUT=3600       # 60 min — ~55.6 GiB
@@ -191,6 +197,7 @@ done
 echo ""
 echo "--- Step 3b: AIMClusterServiceTemplate ---"
 kubectl apply -f "${MANIFEST_DIR}/aim-clusterservicetemplate.yaml"
+kubectl apply -f "${MANIFEST_DIR}/qwen3-6-27b-r9700-gfx1151-latency-profile-configmap.yaml"
 for _ in $(seq 1 30); do
   TSTATUS=$(kubectl get aimclusterservicetemplate qwen3-6-27b-r9700-gfx1151-latency \
     -o jsonpath='{.status.status}' 2>/dev/null || echo "")
@@ -204,6 +211,15 @@ echo ""
 echo "--- Step 3c: AIMRuntimeConfig/demo (envoy-gateway-system/https) ---"
 kubectl apply -f "${MANIFEST_DIR}/aim-runtimeconfig-demo.yaml"
 echo "AIMRuntimeConfig applied to demo namespace."
+
+if [[ "${CATALOG_ONLY}" == "1" ]]; then
+  echo ""
+  echo "CATALOG_ONLY=1: catalog CRs applied. Skipping AIMService deploy."
+  echo "  Template: kubectl get aimclusterservicetemplate qwen3-6-27b-r9700-gfx1151-latency"
+  echo "  Profile:  kubectl get aimclusterprofile qwen3-6-27b-r9700-gfx1151-latency"
+  echo "  Deploy from AI Workbench: /demo/models/aim-catalog"
+  exit 0
+fi
 
 # --- Step 4: Apply AIMService to trigger weight download and inference ---
 echo ""

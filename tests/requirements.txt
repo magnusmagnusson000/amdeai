@@ -1,5 +1,6 @@
 pytest>=7.4
 pytest-asyncio
+pytest-order>=1.2
 kubernetes>=29
 playwright>=1.44
 requests>=2.31

@@ -766,6 +766,7 @@ For the primary path, AIRM is a parallel observability system rather than a gati
 **Helm chart:** `oci://docker.io/amdenterpriseai/charts/aiwb` (v1.0.3)  
 **Script:** `scripts/06b-airm-workbench.sh`  
 **Call-flow doc:** [`docs/call-flows/06b-airm-aiwb.md`](call-flows/06b-airm-aiwb.md)  
+**Deploy catalog models on gfx1151:** [`docs/AIM_CATALOG_MODEL_DEPLOY_GFX1151.md`](AIM_CATALOG_MODEL_DEPLOY_GFX1151.md)  
 **E2E tests:** `tests/e2e/test_aiwb_ui.py`  
 **UI:** `https://aiwbui.<IP>.nip.io`
 

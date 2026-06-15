@@ -43,6 +43,16 @@ if [[ -n "${DEVUSER_ID}" ]]; then
   kubectl exec -n keycloak deploy/keycloak -- /opt/keycloak/bin/kcadm.sh update "users/${DEVUSER_ID}" -r airm \
     -s "username=devuser@${DOMAIN}" -s "email=devuser@${DOMAIN}" >/dev/null
   echo "DevUser -> devuser@${DOMAIN}"
+
+  # AIRM API federates users by keycloak_user_id; stale email after domain migration
+  # causes UniqueViolation on login and dashboard 503 ("Service temporarily unavailable").
+  CNPG_POD=$(kubectl get pods -n airm -l cnpg.io/cluster=airm-infra-cnpg-cnpg -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  if [[ -n "${CNPG_POD}" ]]; then
+    kubectl exec -n airm "${CNPG_POD}" -- psql -U postgres -d airm -c \
+      "UPDATE users SET email = 'devuser@${DOMAIN}', updated_at = NOW() WHERE keycloak_user_id = '${DEVUSER_ID}';" \
+      >/dev/null 2>&1 && echo "AIRM DB user email -> devuser@${DOMAIN}" || true
+    kubectl rollout restart deployment/airm-api -n airm 2>/dev/null || true
+  fi
 fi
 
 echo "Keycloak realm updated."

@@ -3,6 +3,8 @@
 **Audience:** Host with a **working Cluster Bloom** installation (`bloom-gfx1151.yaml`,
 [BLOOM_GFX1151_INSTALL.md](BLOOM_GFX1151_INSTALL.md)).
 
+> **Start here for any new catalog model:** [AIM_CATALOG_MODEL_DEPLOY_GFX1151.md](AIM_CATALOG_MODEL_DEPLOY_GFX1151.md) — checklist, Workbench Deploy flow, post-deploy fixes, and troubleshooting. This document is the **Qwen-specific** deep dive (image build, engine args, smoke tests).
+
 **Goal:** Deploy Qwen/Qwen3.6-27B as a fully managed `AIMService` on a gfx1151 node (Radeon
 8060S / R9700, Strix Halo). The model is served via vLLM under the AIM Engine operator in the same
 way a production MI300X deployment works: `AIMService → InferenceService → custom AIM image →
@@ -741,6 +743,15 @@ curl -sk \
 
 ## Step 10 — Confirm in AI Workbench UI
 
+Prefer the **catalog-only + UI Deploy** flow documented in [AIM_CATALOG_MODEL_DEPLOY_GFX1151.md](AIM_CATALOG_MODEL_DEPLOY_GFX1151.md#6-deploy). After Deploy confirms, always run:
+
+```bash
+bash scripts/ensure-qwen-profile-mount.sh demo
+bash scripts/fix-aim-httproute-gateway.sh demo
+```
+
+Manual UI check:
+
 1. Open `https://aiwbui.${DOMAIN}` in a browser.
 2. Click **Sign in with Keycloak**.
 3. Log in as `devuser@${DOMAIN}`.
@@ -855,13 +866,15 @@ kubectl -n kube-system rollout restart deployment/registry
 | `CrashLoopBackOff: No module named aim_runtime.__main__` | Image built without `__main__.py` | Rebuild image from the Dockerfile in Step 3 |
 | `CrashLoopBackOff: ImportError: cannot import name 'is_offline_mode'` | `huggingface_hub` version downgraded | Rebuild — ensure `RUN pip install "huggingface-hub>=1.5.0,<2.0"` is in Dockerfile |
 | `CrashLoopBackOff: api_server.py: error: unrecognized arguments: true` | `enforce-eager: "true"` (quoted string) in profile | Re-apply `AIMClusterProfile` with unquoted `true` as in Step 5 |
-| `ProfileNotFound: 'custom/qwen/qwen3-6-27b/vllm-r9700-bf16-tp1-latency' not found` | Profile ConfigMap not yet synced | Wait 30 s; check `kubectl get configmap -n default \| grep qwen3-6-27b-profile` |
+| `ProfileNotFound: 'qwen3-6-27b-r9700-gfx1151-latency' not found` | Profile ConfigMap not mounted at `/workspace/aim-runtime/profiles` | `bash scripts/ensure-qwen-profile-mount.sh demo` |
+| `ProfileNotFound: 'custom/qwen/qwen3-6-27b/...' not found` | `customProfile` set on template | Remove `customProfile` from `AIMClusterServiceTemplate` |
+| HTTPRoute `Accepted: False` or AIMService stuck **Starting** | Route parent `kgateway-system` | `bash scripts/fix-aim-httproute-gateway.sh demo` |
 | HTTPRoute has no status (empty `{}`) | `AIMClusterRuntimeConfig` points to wrong gateway | Apply `AIMRuntimeConfig` in the namespace as in Step 6 |
 | Push fails: `http: server gave HTTP response to HTTPS client` | Docker daemon missing insecure registry | Re-run daemon.json + `systemctl restart docker` from Step 1 |
 | `docker pull` fails: `failed to register layer: invalid output path` | Docker `overlay2` store corrupted | `sudo systemctl restart docker` — the daemon reinitialises the store |
 | vLLM exits: `HSA_OVERRIDE_GFX_VERSION not set` | `containerEnv` missing from profile | Check `engineEnv` vs `containerEnv` blocks in the profile |
 | Model outputs `content: null`, only `reasoning` field set | Qwen3 thinking mode; max_tokens too small | Pass `"chat_template_kwargs": {"enable_thinking": false}` or increase `max_tokens` |
-| Workbench shows model but chat fails | HTTPRoute not Accepted or gateway path wrong | `kubectl describe httproute -n default`; verify `Accepted: True` |
+| Workbench shows model but chat fails | HTTPRoute not Accepted or gateway path wrong | `bash scripts/fix-aim-httproute-gateway.sh demo`; `kubectl describe httproute -n demo` |
 
 ### Useful inspection commands
 

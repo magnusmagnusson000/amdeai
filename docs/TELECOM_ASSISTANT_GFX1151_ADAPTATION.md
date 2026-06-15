@@ -10,6 +10,7 @@ This document records every change required to run the [AMD Telecom Assistant bl
 | Helm overrides | [`manifests/telecom-assistant/values-eai-local.yaml`](../manifests/telecom-assistant/values-eai-local.yaml) |
 | Call flow | [`docs/call-flows/09-telecom-assistant.md`](call-flows/09-telecom-assistant.md) |
 | Speech manual tests | [`docs/TELECOM_ASSISTANT_SPEECH_TESTING.md`](TELECOM_ASSISTANT_SPEECH_TESTING.md) |
+| **AIM catalog model deploy (playbook)** | [`docs/AIM_CATALOG_MODEL_DEPLOY_GFX1151.md`](AIM_CATALOG_MODEL_DEPLOY_GFX1151.md) |
 | Qwen3.6-27B AIM (LLM backend) | [`docs/QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md`](QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md) |
 | Blueprint upstream deploy | [solution-blueprints `docs/DEPLOYMENT.md`](https://github.com/amd-enterprise-ai/solution-blueprints/blob/main/solution-blueprints/telecom-assistant/docs/DEPLOYMENT.md) |
 

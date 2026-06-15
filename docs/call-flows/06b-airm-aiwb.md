@@ -1,7 +1,8 @@
 # Call flow: AMD AI Workbench + AIRM
 
 **Deploy:** `scripts/06b-airm-workbench.sh` (Helm OCI charts)  
-**Requires:** `HF_TOKEN` for model catalog features
+**Requires:** `HF_TOKEN` for model catalog features  
+**AIM catalog Deploy (gfx1151):** [`docs/AIM_CATALOG_MODEL_DEPLOY_GFX1151.md`](../AIM_CATALOG_MODEL_DEPLOY_GFX1151.md)
 
 ## Entry (top of stack)
 

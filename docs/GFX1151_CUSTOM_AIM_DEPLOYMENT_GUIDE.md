@@ -1,5 +1,7 @@
 # Custom AIM Deployment on gfx1151 (Strix Halo / Radeon 8060S)
 
+> **Workbench Deploy path (managed AIMService + custom image):** use [AIM_CATALOG_MODEL_DEPLOY_GFX1151.md](AIM_CATALOG_MODEL_DEPLOY_GFX1151.md) instead. This guide covers the **hybrid** path (AIMService weight download + plain vLLM Deployment).
+
 **Platform:** AMD Ryzen AI MAX / Strix Halo · gfx1151 (RDNA 3.5) · 128 GB LPDDR5x  
 **AIM Engine:** v0.11 · ROCm 7.x  
 **Model used as example:** `microsoft/Phi-4-mini-instruct` (3.8 B, fp16, no HF token required)  

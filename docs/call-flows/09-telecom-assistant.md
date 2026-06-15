@@ -19,9 +19,15 @@ On gfx1151 the LLM leg uses **Qwen/Qwen3.6-27B** from the AI Workbench catalog (
 
 ## Prerequisites
 
+Full playbook: [`docs/AIM_CATALOG_MODEL_DEPLOY_GFX1151.md`](../AIM_CATALOG_MODEL_DEPLOY_GFX1151.md)
+
 ```bash
-# 1. Deploy Qwen/Qwen3.6-27B from AI Workbench catalog; wait until predictor Ready
-kubectl get aimservice -A | grep -i qwen
+# 1. Catalog + Workbench Deploy (or scripts/10-qwen3-6-27b.sh)
+CATALOG_ONLY=1 bash scripts/10-qwen3-6-27b.sh
+# UI: /demo/models/aim-catalog → Deploy Qwen → Confirm
+bash scripts/ensure-qwen-profile-mount.sh demo
+bash scripts/fix-aim-httproute-gateway.sh demo
+kubectl get aimservice -n demo    # Running
 
 # 2. Bridge → Ready predictor
 bash scripts/ensure-qwen-llm-bridge.sh

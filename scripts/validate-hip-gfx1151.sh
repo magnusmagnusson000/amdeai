@@ -23,7 +23,7 @@ if pgrep -x ollama >/dev/null || pgrep -f "ollama runner" >/dev/null; then
 fi
 
 if [[ ! -x "$BUILD/bin/llama-cli" ]]; then
-  echo "ERROR: HIP build not found. Run: EAI_LLAMA_BUILD_HIP=1 bash scripts/07-llama-cpp.sh"
+  echo "ERROR: HIP build not found at $BUILD/bin/llama-cli (build llama.cpp with HIP in \$EAI_BUILD_DIR/llama.cpp)."
   exit 1
 fi
 
