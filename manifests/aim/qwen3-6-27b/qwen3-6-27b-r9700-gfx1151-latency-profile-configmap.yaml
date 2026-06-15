@@ -29,7 +29,8 @@ data:
       attention-backend: ROCM_ATTN
       enforce-eager: true
       trust-remote-code: true
-      reasoning-parser: qwen3
+      enable-auto-tool-choice: true
+      tool-call-parser: qwen3_coder
       speculative-config: '{"model":"/workspace/cache/Qwen/Qwen3.6-27B","num_speculative_tokens":1}'
     env_vars:
       HSA_OVERRIDE_GFX_VERSION: "11.5.1"

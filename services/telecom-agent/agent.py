@@ -450,6 +450,7 @@ async def my_agent(ctx: agents.JobContext):
             model=settings.llm_model,
             base_url=settings.llm_base_url,
             api_key=settings.llm_api_key,
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             client=openai_sdk.AsyncClient(
                 max_retries=2,
                 base_url=settings.llm_base_url,

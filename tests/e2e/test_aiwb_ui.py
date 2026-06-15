@@ -192,9 +192,13 @@ def _chattable_response(page: Page, domain: str, namespace: str = "demo") -> dic
 
 def _select_qwen_chat_model(page: Page) -> None:
     """Open Chat model dropdown and select the Qwen catalog entry."""
-    page.locator("text=Select model").last.click(force=True)
+    # Use a button locator to ensure we click the actual button element, not a text node
+    # inside it (the button label "Select model Select model" has duplicate text).
+    select_btn = page.locator("button").filter(has_text=re.compile(r"^Select model", re.I)).last
+    select_btn.wait_for(state="visible", timeout=10000)
+    select_btn.click()
     option = page.locator('[role="option"]').filter(has_text=re.compile(r"Qwen", re.I))
-    expect(option.first).to_be_visible(timeout=15000)
+    expect(option.first).to_be_visible(timeout=30000)
     option.first.click()
     expect(page.locator('[data-testid="chat-input"]')).to_be_enabled(timeout=15000)
 

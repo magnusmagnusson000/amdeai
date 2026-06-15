@@ -2,7 +2,8 @@
 # Mount qwen3-6-27b-r9700-gfx1151-latency profile ConfigMap into Workbench AIM predictors.
 # Fixes: ProfileNotFound when AIM operator omits the profile volume on InferenceService.
 #
-# Mount the ConfigMap at /workspace/aim-runtime/profiles/ so the YAML stem matches AIM_PROFILE_ID.
+# Mount the ConfigMap at /workspace/aim-runtime/profiles/qwen/qwen3-6-27b/
+# (nested path — flat mount at profiles/ causes ProfileNotFound on aim-runtime 0.11).
 #
 # Usage:
 #   bash scripts/ensure-qwen-profile-mount.sh [namespace]
@@ -12,7 +13,7 @@ EAI_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 NS="${1:-demo}"
 CM="qwen3-6-27b-r9700-gfx1151-latency-profile"
-MOUNT_PATH="/workspace/aim-runtime/profiles"
+MOUNT_PATH="/workspace/aim-runtime/profiles/qwen/qwen3-6-27b"
 VOL="qwen3-6-27b-profile"
 
 echo "=== ensure-qwen-profile-mount (namespace=${NS}) ==="

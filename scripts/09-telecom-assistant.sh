@@ -82,6 +82,8 @@ if [[ "$BUILD_TELECOM_AGENT" == "1" ]]; then
 fi
 
 echo "Ensuring Qwen LLM bridge (Workbench catalog Deploy or scripts/10)..."
+bash "$EAI_ROOT/scripts/ensure-qwen-tool-calling.sh" "${QWEN_AIM_NAMESPACE:-demo}" || \
+  echo "WARN: Qwen tool-calling setup skipped (is AIM predictor Running?)"
 QWEN_BRIDGE_WAIT="${QWEN_BRIDGE_WAIT:-300}" bash "$EAI_ROOT/scripts/ensure-qwen-llm-bridge.sh"
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/stt-deployment.yaml" -n "$TELECOM_NAMESPACE"
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/tts-deployment.yaml" -n "$TELECOM_NAMESPACE"
