@@ -1,0 +1,37 @@
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterServiceTemplate
+metadata:
+  name: qwen3-6-35b-moe-r9700-gfx1151-latency
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+    aim.eai.amd.com/cluster-model.name: qwen-qwen3-6-35b-moe
+spec:
+  modelName: qwen-qwen3-6-35b-moe
+  aimId: qwen/qwen3-6-35b-moe
+  modelId: Qwen/Qwen3.6-35B-A3B
+  metric: latency
+  precision: bf16
+  hardware:
+    gpu:
+      model: R9700
+      requests: 1
+      resourceName: amd.com/gpu
+  env:
+    - name: AIM_ID
+      value: qwen/qwen3-6-35b-moe
+    - name: AIM_GPU_MODEL
+      value: R9700
+    - name: AIM_GPU_COUNT
+      value: "1"
+    - name: HSA_OVERRIDE_GFX_VERSION
+      value: "11.5.1"
+    - name: HSA_ENABLE_SDMA
+      value: "0"
+    - name: MIOPEN_FIND_ENFORCE
+      value: "1"
+    - name: PYTORCH_ROCM_ARCH
+      value: gfx1151
+    - name: TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL
+      value: "1"
+  profileId: qwen3-6-35b-moe-r9700-gfx1151-latency

@@ -1,0 +1,51 @@
+# AIM catalog entry for Qwen/Qwen3.6-35B-A3B (MoE) — manually authored.
+#
+# Uses custom gfx1151 AIM image (images/aim-gfx1151-qwen3-6-35b-moe/Dockerfile):
+#   aim-runtime (pure Python) from aim-base:0.11 + kyuz0 vLLM 0.19.2rc1 stack.
+# This enables the managed AIMService flow (InferenceService) on gfx1151.
+# Runtime config lives in aim-clusterprofile.yaml.
+#
+# Key MoE notes vs the 27B dense model:
+#   - Total 35B params / 4B active per token (BF16 weights ~70 GiB)
+#   - gpu-memory-utilization raised to 0.65 in profile (was 0.55 for 27B)
+#   - VLLM_ROCM_USE_AITER_MOE=0 remains — AITER MoE not reliable on gfx1151
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterModel
+metadata:
+  name: qwen-qwen3-6-35b-moe
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+  annotations:
+    aim.eai.amd.com/source-registry: ${REGISTRY_HOST}
+    aim.eai.amd.com/source-repository: aim-gfx1151-qwen3-6-35b-moe
+    aim.eai.amd.com/source-tag: "0.11-therock"
+spec:
+  image: ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-35b-moe:0.11-therock
+  discovery:
+    # Do not set extractMetadata: false when spec.imageMetadata is provided —
+    # the operator would skip copying tags (e.g. "chat") into status, and Chat UI
+    # would not list the deployed AIMService.
+    createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: ${REGISTRY_HOST}/aim-gfx1151-qwen3-6-35b-moe:0.11-therock
+    model:
+      canonicalName: Qwen/Qwen3.6-35B-A3B
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - instruction
+        - reasoning
+      descriptionFull: >
+        Qwen3.6-35B-A3B (35B total / 3B active, MoE) by Qwen. Validated on gfx1151
+        (Strix Halo / R9700) via vLLM with ROCm HIP. No HuggingFace token required.
+        Runtime config: qwen3-6-35b-moe-r9700-gfx1151-latency (AIMClusterProfile v1alpha2).
+        Requires --trust-remote-code. AITER MoE disabled (not reliable on gfx1151).
+      recommendedDeployments:
+        - gpuModel: R9700
+          gpuCount: 1
+          precision: bf16
+          metric: latency
+          profileId: qwen3-6-35b-moe-r9700-gfx1151-latency
+          description: gfx1151 latency profile — AITER disabled, ROCM_ATTN backend, BF16, gpu-mem 0.65

@@ -1,0 +1,16 @@
+apiVersion: aim.eai.amd.com/v1alpha2
+kind: AIMService
+metadata:
+  name: qwen3-6-35b-moe
+  namespace: demo
+spec:
+  model:
+    name: qwen-qwen3-6-35b-moe
+  template:
+    name: qwen3-6-35b-moe-r9700-gfx1151-latency
+  caching:
+    mode: Shared
+  replicas: 1
+  env:
+    - name: AIM_ID
+      value: qwen/qwen3-6-35b-moe

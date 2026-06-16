@@ -429,3 +429,343 @@ def test_models_page_gemma(page: Page, domain: str, devuser_password: str | None
     _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
     page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
     expect(page.locator("body")).to_contain_text(re.compile(r"model|catalog|Gemma", re.I), timeout=60000)
+
+
+# ---------------------------------------------------------------------------
+# Qwen3.6-35B-MoE tests
+# ---------------------------------------------------------------------------
+
+_SKIP_MOE = pytest.mark.skipif(
+    not os.environ.get("E2E_MOE", ""),
+    reason="Set E2E_MOE=1",
+)
+_SKIP_MOE_DEPLOY = pytest.mark.skipif(
+    not os.environ.get("E2E_MOE_DEPLOY", ""),
+    reason="Set E2E_MOE_DEPLOY=1 for one-time full deploy (destructive)",
+)
+
+_MOE_MODEL_NAME = "qwen-qwen3-6-35b-moe"
+_MOE_DEPLOY_MIN_GB = 95  # MoE weights ~67 GiB; matches scripts/11-qwen3-6-35b-moe.sh
+_MOE_DEPLOY_TIMEOUT_S = 5400   # 90 min — download (~70 GiB) + model load
+_MOE_CHAT_TIMEOUT_S = 180
+
+
+def _click_moe_deploy_button(page: Page) -> None:
+    """Click the Deploy split-button on the qwen-qwen3-6-35b-moe catalog card."""
+    moe_text = page.get_by_text(_MOE_MODEL_NAME, exact=True).first
+    moe_text.wait_for(state="visible", timeout=30000)
+    moe_text.scroll_into_view_if_needed()
+
+    card = page.locator("div.flex-col.relative.overflow-hidden").filter(
+        has_text=_MOE_MODEL_NAME
+    ).first
+    deploy = card.get_by_role("button", name="Deploy").first
+    deploy.wait_for(state="visible", timeout=10000)
+    deploy.click()
+
+
+def _moe_aimservice_names(namespace: str = "demo") -> list[str]:
+    """Return AIMService names for the MoE model."""
+    names: list[str] = []
+    for svc in _existing_aimservices(namespace):
+        name = svc.split("/")[-1]
+        model = _kubectl(
+            ["get", "aimservice", name, "-n", namespace, "-o", "jsonpath={.spec.model.name}"]
+        )
+        if model == _MOE_MODEL_NAME:
+            names.append(name)
+    return names
+
+
+def _teardown_moe_deployments(namespace: str = "demo") -> None:
+    """Remove existing MoE AIMService / InferenceService / PVCs before a fresh deploy."""
+    for name in _moe_aimservice_names(namespace):
+        _kubectl_run(
+            ["delete", "aimservice", name, "-n", namespace, "--ignore-not-found",
+             "--wait=true", "--timeout=120s"],
+            timeout=150,
+        )
+
+    for tc in _kubectl(["get", "aimtemplatecache", "-n", namespace, "-o", "name"]).splitlines():
+        if tc and ("35b" in tc.lower() or "moe" in tc.lower()):
+            _kubectl_run(["delete", tc, "-n", namespace, "--ignore-not-found"], timeout=60)
+
+    for art in _kubectl(["get", "aimartifact", "-n", namespace, "-o", "name"]).splitlines():
+        if art and ("35b" in art.lower() or "moe" in art.lower()):
+            _kubectl_run(["delete", art, "-n", namespace, "--ignore-not-found"], timeout=60)
+
+    isvcs = _kubectl(["get", "inferenceservice", "-n", namespace, "-o", "name"])
+    for isvc in isvcs.splitlines():
+        if isvc and ("35b" in isvc.lower() or "moe" in isvc.lower()):
+            _kubectl_run(
+                ["delete", isvc, "-n", namespace, "--ignore-not-found",
+                 "--force", "--grace-period=0"],
+                timeout=60,
+            )
+
+    pvcs = _kubectl(["get", "pvc", "-n", namespace, "-o", "name"])
+    for pvc in pvcs.splitlines():
+        if pvc and ("35b" in pvc.lower() or "moe" in pvc.lower()):
+            name = pvc.split("/")[-1]
+            _kubectl_run(
+                ["patch", "pvc", name, "-n", namespace, "--type=json",
+                 "-p", '[{"op":"remove","path":"/metadata/finalizers"}]'],
+                timeout=30,
+            )
+            _kubectl_run(
+                ["delete", "pvc", name, "-n", namespace,
+                 "--ignore-not-found", "--force", "--grace-period=0"],
+                timeout=30,
+            )
+
+
+def _ensure_moe_chattable() -> None:
+    """Publish chat tag on AIMClusterModel status for the MoE model."""
+    script = _EAI_ROOT / "scripts" / "ensure-qwen-moe-chattable.sh"
+    if script.is_file():
+        subprocess.run(["bash", str(script)], check=False, timeout=90)
+
+
+def _apply_moe_post_deploy_fixes(namespace: str = "demo") -> None:
+    """gfx1151 post-deploy: profile mount, gateway ref, HTTPRoute parent."""
+    profile = _EAI_ROOT / "scripts" / "ensure-qwen-moe-profile-mount.sh"
+    gateway = _EAI_ROOT / "scripts" / "fix-aim-httproute-gateway.sh"
+    if profile.is_file():
+        subprocess.run(["bash", str(profile), namespace], check=False, timeout=180)
+    for name in _moe_aimservice_names(namespace):
+        _kubectl_run(
+            [
+                "patch", "aimservice", name, "-n", namespace, "--type=json",
+                "-p", '[{"op":"replace","path":"/spec/routing/gatewayRef/namespace","value":"envoy-gateway-system"}]',
+            ],
+            timeout=30,
+        )
+    if gateway.is_file():
+        subprocess.run(["bash", str(gateway), namespace], check=False, timeout=120)
+    _ensure_moe_chattable()
+
+
+def _select_moe_chat_model(page: Page) -> None:
+    """Open Chat model dropdown and select the MoE catalog entry."""
+    select_btn = page.locator("button").filter(has_text=re.compile(r"^Select model", re.I)).last
+    select_btn.wait_for(state="visible", timeout=10000)
+    select_btn.click()
+    option = page.locator('[role="option"]').filter(has_text=re.compile(r"35B|MoE|qwen3-6-35b", re.I))
+    expect(option.first).to_be_visible(timeout=30000)
+    option.first.click()
+    expect(page.locator('[data-testid="chat-input"]')).to_be_enabled(timeout=15000)
+
+
+@_SKIP_MOE
+@pytest.mark.order(10)
+def test_aim_catalog_shows_qwen_moe(page: Page, domain: str, devuser_password: str | None):
+    """AIM Catalog shows the gfx1151 Qwen3.6-35B-MoE entry with an enabled Deploy button."""
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+    expect(page.locator(f"text={_MOE_MODEL_NAME}")).to_be_visible(timeout=30000)
+
+    moe_text = page.locator(f"text={_MOE_MODEL_NAME}").first
+    moe_bb = moe_text.bounding_box()
+    all_deploy = page.get_by_role("button", name="Deploy").all()
+    closest = min(
+        (b for b in all_deploy if b.bounding_box()),
+        key=lambda b: abs(b.bounding_box()["y"] - moe_bb["y"]),
+    )
+    expect(closest).to_be_enabled()
+
+
+@_SKIP_MOE
+@pytest.mark.order(11)
+def test_deploy_qwen_moe_button(page: Page, domain: str, devuser_password: str | None):
+    """Deploy dialog opens for the MoE card, shows correct model name, and cancels cleanly.
+
+    Non-destructive: does not confirm the deployment.
+    """
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+
+    before = _existing_aimservices()
+
+    _click_moe_deploy_button(page)
+    dialog = page.locator('[role="dialog"]')
+    expect(page.locator("text=Deploy AIM")).to_be_visible(timeout=10000)
+    expect(dialog).to_contain_text(
+        re.compile(r"qwen.*35b|35b.*moe|qwen3-6-35b", re.I), timeout=5000
+    )
+
+    cancel_btn = page.get_by_role("button", name=re.compile(r"^Cancel$", re.I))
+    if cancel_btn.count() > 0:
+        cancel_btn.first.click()
+    else:
+        page.keyboard.press("Escape")
+
+    expect(page.locator("text=Deploy AIM")).not_to_be_visible(timeout=5000)
+    _cleanup_new_aimservices(before)
+
+
+@_SKIP_MOE_DEPLOY
+def test_qwen_moe_deploy_confirm_full(page: Page, domain: str, devuser_password: str | None):
+    """One-time full Deploy: teardown any existing MoE deployment, confirm dialog, wait Running.
+
+    NOT part of the default suite — requires E2E_MOE_DEPLOY=1.
+    Triggers ~70 GiB model download (~90 min).
+    """
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+
+    free_gb = _free_disk_gb()
+    print(f"Disk free: {free_gb} GiB (need >= {_MOE_DEPLOY_MIN_GB})", flush=True)
+    if free_gb < _MOE_DEPLOY_MIN_GB:
+        pytest.fail(
+            f"Need >= {_MOE_DEPLOY_MIN_GB} GiB free on / (have {free_gb} GiB). "
+            "Run: bash scripts/teardown-qwen-weights.sh"
+        )
+
+    print("Teardown existing MoE deployments...", flush=True)
+    _teardown_moe_deployments()
+
+    print("Keycloak login + catalog...", flush=True)
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+
+    print("Click Deploy on MoE card...", flush=True)
+    _click_moe_deploy_button(page)
+    dialog = page.locator('[role="dialog"]')
+    expect(page.locator("text=Deploy AIM")).to_be_visible(timeout=10000)
+    expect(dialog).to_contain_text(
+        re.compile(r"qwen.*35b|35b.*moe|qwen3-6-35b", re.I), timeout=5000
+    )
+    expect(dialog).not_to_contain_text(
+        re.compile(r"qwen3-6-27b|qwen-qwen3-6-27b", re.I), timeout=2000
+    )
+
+    confirm = dialog.get_by_role(
+        "button", name=re.compile(r"^(Deploy|Confirm|Deploy AIM)$", re.I)
+    )
+    if confirm.count() == 0:
+        confirm = page.get_by_role("button", name=re.compile(r"^Deploy AIM$", re.I))
+    if confirm.count() == 0:
+        confirm = page.locator("button").filter(has_text=re.compile(r"^Deploy$", re.I))
+    assert confirm.count() > 0, "No confirm button in Deploy AIM dialog"
+    print(f"Confirm deploy (buttons={confirm.count()})...", flush=True)
+    confirm.first.click()
+
+    expect(page.locator("text=Deploy AIM")).not_to_be_visible(timeout=30000)
+    print("Deploy dialog closed — waiting for AIMService...", flush=True)
+
+    appear_deadline = time.time() + 300
+    while time.time() < appear_deadline and not _moe_aimservice_names():
+        time.sleep(10)
+    if not _moe_aimservice_names():
+        pytest.fail("No MoE AIMService created within 5 min after Deploy confirm")
+
+    profile_script = _EAI_ROOT / "scripts" / "ensure-qwen-moe-profile-mount.sh"
+    post_fixes_applied = False
+    deadline = time.time() + 300
+    while time.time() < deadline:
+        isvcs = _kubectl(["get", "inferenceservice", "-n", "demo", "-o", "name"])
+        if isvcs and ("35b" in isvcs.lower() or "wb-aim" in isvcs.lower()):
+            if not post_fixes_applied:
+                _apply_moe_post_deploy_fixes()
+                post_fixes_applied = True
+            break
+        time.sleep(10)
+
+    running = False
+    wait_deadline = time.time() + _MOE_DEPLOY_TIMEOUT_S
+    while time.time() < wait_deadline:
+        for name in _moe_aimservice_names():
+            last_status = _kubectl(
+                ["get", "aimservice", name, "-n", "demo", "-o", "jsonpath={.status.status}"]
+            )
+            print(f"  aimservice/{name} status={last_status!r}", flush=True)
+            if last_status == "Running":
+                running = True
+                break
+            if not post_fixes_applied and _kubectl(
+                ["get", "inferenceservice", "-n", "demo", "-o", "name"]
+            ):
+                _apply_moe_post_deploy_fixes()
+                post_fixes_applied = True
+            logs = _kubectl(["logs", "-n", "demo", "-l", "component=predictor", "--tail=8"])
+            if "ProfileNotFound" in logs and profile_script.is_file():
+                print("  ProfileNotFound — re-applying profile mount...", flush=True)
+                subprocess.run(["bash", str(profile_script), "demo"], check=False, timeout=120)
+        if running:
+            break
+        time.sleep(60)
+    if not running:
+        pytest.fail(f"MoE AIMService did not reach Running within {_MOE_DEPLOY_TIMEOUT_S}s")
+
+    _ensure_moe_chattable()
+
+    page.reload()
+    page.wait_for_load_state("networkidle", timeout=15000)
+    expect(page.locator("body")).to_contain_text(re.compile(r"Running|Deployed", re.I), timeout=60000)
+    expect(page.locator("body")).not_to_contain_text(
+        re.compile(r"500|502|connection refused", re.I)
+    )
+
+
+@_SKIP_MOE
+@pytest.mark.order(12)
+def test_qwen_moe_card_status(page: Page, domain: str, devuser_password: str | None):
+    """The MoE catalog card shows a non-error live status (requires pre-deployed AIMService)."""
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    if not _moe_aimservice_names():
+        pytest.skip("No MoE AIMService found in demo ns — deploy from catalog first")
+
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+    expect(page.locator(f"text={_MOE_MODEL_NAME}")).to_be_visible(timeout=30000)
+    expect(page.locator("body")).to_contain_text(
+        re.compile(r"Running|Starting|Deploying|Failed|Deployed", re.I), timeout=15000
+    )
+    expect(page.locator("body")).not_to_contain_text(
+        re.compile(r"500|502|connection refused", re.I)
+    )
+
+
+@_SKIP_MOE
+@pytest.mark.order(13)
+def test_qwen_moe_chat(page: Page, domain: str, devuser_password: str | None):
+    """Chat UI: select deployed MoE model and receive a response.
+
+    Requires a Running MoE AIMService (wb-aim-*) in demo. Ensures the catalog
+    model exposes the chat tag in status.imageMetadata so /chattable lists it.
+    """
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    if not _moe_aimservice_names():
+        pytest.skip("No MoE AIMService in demo — deploy from catalog first")
+
+    _ensure_moe_chattable()
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CHAT_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=30000)
+
+    chattable = _chattable_response(page, domain)
+    if not chattable.get("aimServices"):
+        pytest.fail(
+            "chattable API returned no AIM services — run: bash scripts/ensure-qwen-moe-chattable.sh"
+        )
+
+    _select_moe_chat_model(page)
+    prompt = "Reply with exactly: pong"
+    chat_input = page.locator('[data-testid="chat-input"]')
+    chat_input.fill(prompt)
+    chat_input.press("Enter")
+
+    expect(page.locator("body")).to_contain_text("pong", timeout=_MOE_CHAT_TIMEOUT_S * 1000)
+    expect(page.locator("body")).not_to_contain_text(
+        re.compile(r"500|502|connection refused|failed to fetch", re.I)
+    )
