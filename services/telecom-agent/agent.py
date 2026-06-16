@@ -50,6 +50,9 @@ def _extract_passphrase(text: str) -> str | None:
     normalized = _normalize_passphrase(text)
     if normalized in KNOWN_PASSPHRASES:
         return normalized
+    for known in KNOWN_PASSPHRASES:
+        if known in normalized:
+            return known
     match = re.search(r"pass\s*phrase\s+is\s+([a-zA-Z0-9_-]+)", text, re.I)
     if match:
         candidate = _normalize_passphrase(match.group(1))
@@ -161,22 +164,15 @@ class Assistant(agents.Agent):
         passphrase = _extract_passphrase(text)
 
         if passphrase and not self._authenticated_user_id:
-            turn_ctx.add_message(
-                role="developer",
-                content=(
-                    f"Call get_user_by_pass_phrase(pass_phrase={passphrase!r}) immediately. "
-                    "Use the function API only — no text-only reply."
-                ),
-            )
-            logger.info(f"Passphrase detected ({passphrase!r}); injected tool-call hint")
+            # vLLM rejects mid-conversation system/developer roles; explicit phrasing
+            # triggers reliable tool_calls (tested with Qwen3.6-35B-A3B MoE).
+            new_message.content = [f"My passphrase is {passphrase}"]
+            logger.info(f"Passphrase detected ({passphrase!r}); normalized user message for tool call")
         elif self._authenticated_user_id:
-            turn_ctx.add_message(
-                role="developer",
-                content=(
-                    f"Authenticated user_id is {self._authenticated_user_id!r}. "
-                    "Use this user_id for all account tools. Do not invent IDs."
-                ),
-            )
+            new_message.content = [
+                f"{text}\n\n[Authenticated user_id: {self._authenticated_user_id}. "
+                "Use this user_id for account tools.]"
+            ]
 
     async def tts_node(self, text: AsyncIterable[str], model_settings) -> AsyncIterable[rtc.AudioFrame]:
         async def logged_text():
