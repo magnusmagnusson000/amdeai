@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Warm up Qwen3.6-27B AIM (vLLM / KServe predictor).
+# Warm up Qwen3.6 AIM (vLLM / KServe predictor).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
-LLM_BASE="${LLM_URL:-http://qwen3-6-27b-llm.default.svc.cluster.local}"
-LLM_MODEL="${LLM_MODEL:-Qwen/Qwen3.6-27B}"
+LLM_BASE="${LLM_URL:-http://qwen-llm.default.svc.cluster.local}"
+LLM_MODEL="${LLM_MODEL:-Qwen/Qwen3.6-35B-A3B}"
 TIMEOUT="${LLM_WARMUP_TIMEOUT:-180}"
 
 base="${LLM_BASE%/}"

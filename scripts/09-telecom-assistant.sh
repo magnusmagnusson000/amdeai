@@ -115,8 +115,8 @@ kubectl wait --for=condition=available deployment \
 kubectl get pods,svc -n "$TELECOM_NAMESPACE"
 
 echo ""
-echo "Warming up Qwen3.6-27B AIM..."
-bash "$EAI_ROOT/scripts/warmup-llm.sh" || echo "WARN: LLM warmup skipped (is AIMService qwen3-6-27b Running?)"
+echo "Warming up Qwen3.6-35B-A3B MoE AIM..."
+bash "$EAI_ROOT/scripts/warmup-llm.sh" || echo "WARN: LLM warmup skipped (is AIM predictor Running?)"
 
 echo ""
 echo "Port-forward (separate terminals):"

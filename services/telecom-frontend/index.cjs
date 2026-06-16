@@ -20,8 +20,8 @@ const {
   LIVEKIT_PROXY_ENABLED = "1",
   LIVEKIT_PROXY_PREFIX = "/livekit",
   PORT = "3000",
-  LLM_WARMUP_URL = "http://qwen3-6-27b-llm.default.svc.cluster.local",
-  LLM_MODEL = "Qwen/Qwen3.6-27B",
+  LLM_WARMUP_URL = "http://qwen-llm.default.svc.cluster.local",
+  LLM_MODEL = "Qwen/Qwen3.6-35B-A3B",
 } = process.env;
 
 const proxy = httpProxy.createProxyServer({ ws: true, changeOrigin: true });
@@ -60,6 +60,7 @@ function warmupLlm() {
       model: LLM_MODEL,
       messages: [{ role: "user", content: "hi" }],
       max_tokens: 1,
+      chat_template_kwargs: { enable_thinking: false },
     }),
   })
     .then((r) => {

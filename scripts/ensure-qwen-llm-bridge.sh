@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Wire qwen3-6-27b-llm to a Ready Qwen3.6-27B AIM predictor (any namespace).
-# Matches Workbench catalog Deploy (demo/wb-aim-*) and scripts/10 AIMService alike.
+# Wire qwen-llm to a Ready Qwen AIM predictor (any namespace).
+# Matches Workbench catalog Deploy (demo/wb-aim-*) and scripts/10/11 alike.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
@@ -8,9 +8,9 @@ export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 
 BRIDGE_MANIFEST="${EAI_ROOT}/manifests/telecom-assistant/qwen-llm-bridge.yaml"
 NAMESPACE="${QWEN_LLM_NAMESPACE:-default}"
-SERVICE="qwen3-6-27b-llm"
-# AIMClusterModel name / pod label aim.eai.amd.com/model (Workbench + scripts/10).
-QWEN_AIM_MODEL="${QWEN_AIM_MODEL:-qwen-qwen3-6-27b}"
+SERVICE="${QWEN_LLM_SERVICE:-qwen-llm}"
+# AIMClusterModel name / pod label aim.eai.amd.com/model (Workbench + scripts/11).
+QWEN_AIM_MODEL="${QWEN_AIM_MODEL:-qwen-qwen3-6-35b-moe}"
 PREDICTOR_PORT="${QWEN_PREDICTOR_PORT:-8000}"
 WAIT_SECS="${QWEN_BRIDGE_WAIT:-180}"
 
@@ -18,6 +18,8 @@ kubectl apply -f "$BRIDGE_MANIFEST"
 # Drop legacy selector so Endpoints are authoritative (cross-namespace Workbench deploys).
 kubectl patch service "$SERVICE" -n "$NAMESPACE" --type json \
   -p='[{"op":"remove","path":"/spec/selector"}]' 2>/dev/null || true
+# Remove deprecated 27B-only service name if present.
+kubectl delete service qwen3-6-27b-llm -n "$NAMESPACE" --ignore-not-found 2>/dev/null || true
 
 find_ready_predictor() {
   kubectl get pods -A \
@@ -45,7 +47,8 @@ print('|'.join([
 }
 
 find_hybrid_predictor() {
-  kubectl get pods -n "$NAMESPACE" -l app=qwen3-6-27b-vllm \
+  local hybrid_app="${QWEN_HYBRID_APP:-qwen3-6-35b-moe-vllm}"
+  kubectl get pods -n "$NAMESPACE" -l app="$hybrid_app" \
     --field-selector=status.phase=Running \
     -o json 2>/dev/null | python3 -c "
 import json, sys
@@ -58,7 +61,7 @@ ready = [
 if not ready:
     sys.exit(1)
 p = ready[0]
-print('|'.join([p['metadata']['namespace'], p['metadata']['name'], p['status']['podIP'], 'qwen3-6-27b-vllm']))
+print('|'.join([p['metadata']['namespace'], p['metadata']['name'], p['status']['podIP'], '${hybrid_app}']))
 "
 }
 
@@ -94,8 +97,8 @@ resolve_backend() {
   fi
   if [[ "${QWEN_USE_HYBRID_VLLM:-0}" == "1" ]] || line="$(find_hybrid_predictor 2>/dev/null)"; then
     if [[ -z "$line" ]]; then
-      kubectl scale deployment qwen3-6-27b-vllm -n "$NAMESPACE" --replicas=1 2>/dev/null || true
-      kubectl rollout status deployment/qwen3-6-27b-vllm -n "$NAMESPACE" --timeout=900s 2>/dev/null || true
+      kubectl scale deployment "${QWEN_HYBRID_APP:-qwen3-6-35b-moe-vllm}" -n "$NAMESPACE" --replicas=1 2>/dev/null || true
+      kubectl rollout status deployment/"${QWEN_HYBRID_APP:-qwen3-6-35b-moe-vllm}" -n "$NAMESPACE" --timeout=900s 2>/dev/null || true
       line="$(find_hybrid_predictor)"
     fi
     echo "$line"
@@ -104,7 +107,7 @@ resolve_backend() {
   return 1
 }
 
-echo "Discovering Ready Qwen3.6-27B predictor (model=${QWEN_AIM_MODEL})..."
+echo "Discovering Ready Qwen predictor (model=${QWEN_AIM_MODEL})..."
 deadline=$((SECONDS + WAIT_SECS))
 line=""
 while true; do
@@ -113,7 +116,7 @@ while true; do
   fi
   if (( SECONDS >= deadline )); then
     echo "WARN: No Ready Qwen predictor after ${WAIT_SECS}s."
-    echo "  Deploy Qwen/Qwen3.6-27B from AI Workbench catalog (Deploy), then re-run this script."
+    echo "  Deploy Qwen from AI Workbench catalog (Deploy), then re-run this script."
     exit 0
   fi
   echo "  Waiting for AIM predictor..."

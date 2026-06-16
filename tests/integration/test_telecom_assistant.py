@@ -103,26 +103,32 @@ def test_agent_uses_qwen_llm_config():
     wait_pod("aimsb-telecom-assistant-eai-telecom-agent", timeout=600)
     llm_model = agent_env("LLM_MODEL")
     llm_url = agent_env("LLM_BASE_URL")
-    assert llm_model == "Qwen/Qwen3.6-27B"
-    assert "qwen3-6-27b-llm" in (llm_url or "")
+    assert llm_model == "Qwen/Qwen3.6-35B-A3B"
+    assert "qwen-llm" in (llm_url or "")
 
 
 def test_qwen_llm_bridge():
-    """LLM for telecom: stable bridge → Ready Qwen3.6-27B AIM predictor (Workbench or scripts/10)."""
-    with port_forward("svc/qwen3-6-27b-llm", 18080, 80, namespace="default"):
-        check_qwen_llm_models()
-        chat = requests.post(
-            f"{qwen_llm_base_url()}/v1/chat/completions",
-            json={
-                "model": "Qwen/Qwen3.6-27B",
-                "messages": [{"role": "user", "content": "Say hi in one word."}],
-                "max_tokens": 32,
-            },
-            timeout=180,
-        )
-        assert chat.status_code == 200
-        body = chat.json()
-        assert "choices" in body
+    """LLM for telecom: stable bridge → Ready Qwen3.6-35B-A3B MoE AIM predictor."""
+    import subprocess
+
+    # Selectorless Service — port-forward is unreliable; verify via in-cluster curl.
+    out = subprocess.check_output(
+        [
+            "kubectl", "run", "llm-bridge-test", "--rm", "-i", "--restart=Never",
+            "--image=curlimages/curl:8.18.0", "-n", NAMESPACE, "--",
+            "sh", "-c",
+            "curl -sf http://qwen-llm.default.svc.cluster.local/v1/models && "
+            "curl -sf --max-time 180 -X POST http://qwen-llm.default.svc.cluster.local/v1/chat/completions "
+            "-H 'Content-Type: application/json' -H 'Authorization: Bearer no-key-required' "
+            "-d '{\"model\":\"Qwen/Qwen3.6-35B-A3B\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hi in one word.\"}],"
+            "\"max_tokens\":32,\"chat_template_kwargs\":{\"enable_thinking\":false}}'",
+        ],
+        text=True,
+        stderr=subprocess.STDOUT,
+        timeout=240,
+    )
+    assert "Qwen" in out
+    assert "choices" in out
 
 
 def test_cpu_stt_health_and_models():

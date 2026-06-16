@@ -18,6 +18,7 @@ from bss_gateway_client import BSSGatewayClient
 from ingest_chromadb import main as ingest_main
 from libre_desk_client import LibreDeskClient
 from livekit import agents, rtc
+from livekit.agents import llm
 from livekit.plugins import openai, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from settings import settings
@@ -28,6 +29,45 @@ MAX_DOC_CHARS = 1500
 MAX_TOTAL_CONTEXT_CHARS = 4000
 
 logger = logging.getLogger(__name__)
+
+# Qwen3.6 MoE tends to narrate tool use ("Tool call initiated…") instead of calling tools.
+QWEN_TOOL_CALL_ADDENDUM = """
+CRITICAL TOOL-CALLING RULES:
+- NEVER say you will call a tool, "Tool call initiated", or "I will now authenticate". CALL the tool immediately.
+- If the user message is only a passphrase (e.g. "milkyway" or "mars"), call get_user_by_pass_phrase right away.
+- Never invent user_id values. Only use user_id returned by get_user_by_pass_phrase.
+- Never repeat the passphrase back to the user.
+"""
+
+KNOWN_PASSPHRASES = frozenset({"milkyway", "mars"})
+
+
+def _normalize_passphrase(text: str) -> str:
+    return "".join(char.lower() for char in text if char.isalnum())
+
+
+def _extract_passphrase(text: str) -> str | None:
+    normalized = _normalize_passphrase(text)
+    if normalized in KNOWN_PASSPHRASES:
+        return normalized
+    match = re.search(r"pass\s*phrase\s+is\s+([a-zA-Z0-9_-]+)", text, re.I)
+    if match:
+        candidate = _normalize_passphrase(match.group(1))
+        if candidate:
+            return candidate
+    return None
+
+
+def _message_text(message: llm.ChatMessage) -> str:
+    if getattr(message, "text_content", None):
+        return message.text_content or ""
+    parts: list[str] = []
+    for item in message.content or []:
+        if isinstance(item, str):
+            parts.append(item)
+        elif hasattr(item, "text"):
+            parts.append(item.text or "")
+    return " ".join(parts).strip()
 
 # ============ PATCH TTS TIMEOUT ============
 
@@ -105,13 +145,38 @@ class QwenASRWrapper(openai.STT):
 
 class Assistant(agents.Agent):
     def __init__(self) -> None:
-        super().__init__(instructions=SYSTEM_INSTRUCTIONS)
+        super().__init__(instructions=SYSTEM_INSTRUCTIONS + QWEN_TOOL_CALL_ADDENDUM)
+        self._authenticated_user_id: str | None = None
         self.store = ChromaHybridStore() if settings.chroma_url else None
         logger.info("Storage initialized")
         self.bssgateway_client = BSSGatewayClient() if settings.bssgateway_url else None
         logger.info("BSS Gateway initialized")
         self.libredesk_client = LibreDeskClient() if settings.libredesk_url else None
         logger.info("Libredesk initialized")
+
+    async def on_user_turn_completed(
+        self, turn_ctx: llm.ChatContext, new_message: llm.ChatMessage
+    ) -> None:
+        text = _message_text(new_message)
+        passphrase = _extract_passphrase(text)
+
+        if passphrase and not self._authenticated_user_id:
+            turn_ctx.add_message(
+                role="developer",
+                content=(
+                    f"Call get_user_by_pass_phrase(pass_phrase={passphrase!r}) immediately. "
+                    "Use the function API only — no text-only reply."
+                ),
+            )
+            logger.info(f"Passphrase detected ({passphrase!r}); injected tool-call hint")
+        elif self._authenticated_user_id:
+            turn_ctx.add_message(
+                role="developer",
+                content=(
+                    f"Authenticated user_id is {self._authenticated_user_id!r}. "
+                    "Use this user_id for all account tools. Do not invent IDs."
+                ),
+            )
 
     async def tts_node(self, text: AsyncIterable[str], model_settings) -> AsyncIterable[rtc.AudioFrame]:
         async def logged_text():
@@ -157,6 +222,8 @@ class Assistant(agents.Agent):
                 payload=json.dumps({"UserName": f"{result.first_name} {result.last_name}"}),
             )
 
+            self._authenticated_user_id = result.user_id
+            logger.info(f"Authenticated user_id={result.user_id} ({result.first_name} {result.last_name})")
             return result.model_dump()
         except Exception as e:
             logger.exception(f"Failed to find user by pass phrase: {e}")
@@ -419,6 +486,7 @@ def _warmup_llm() -> None:
                     "model": settings.llm_model,
                     "messages": [{"role": "user", "content": "hi"}],
                     "max_tokens": 1,
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
                 headers={"Authorization": f"Bearer {settings.llm_api_key or 'no-key-required'}"},
             )

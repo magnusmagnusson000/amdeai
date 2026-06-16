@@ -2,18 +2,18 @@
 
 Automated Playwright tests cover UI, APIs, LiveKit signaling, and **text chat** via the Client Simulator. **Microphone STT and speaker TTS** require manual validation in the browser.
 
-STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`). The LLM is **Qwen3.6-27B** — deploy from the **AI Workbench catalog** (see playbook below), then start telecom.
+STT and TTS run as **CPU-only** services (`telecom-stt`, `telecom-tts`). The LLM is **Qwen3.6-35B-A3B** (MoE) — deploy from the **AI Workbench catalog** (see playbook below), then start telecom.
 
 **Model deploy playbook:** [`AIM_CATALOG_MODEL_DEPLOY_GFX1151.md`](AIM_CATALOG_MODEL_DEPLOY_GFX1151.md)  
 **Prerequisites doc:** [`TELECOM_ASSISTANT_GFX1151_ADAPTATION.md`](TELECOM_ASSISTANT_GFX1151_ADAPTATION.md)  
-**Qwen-specific details:** [`QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md`](QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md)
+**Qwen MoE details:** [`scripts/11-qwen3-6-35b-moe.sh`](../scripts/11-qwen3-6-35b-moe.sh)
 
 **Typical order:**
 
 ```bash
-CATALOG_ONLY=1 bash scripts/10-qwen3-6-27b.sh          # catalog CRs (once)
-# AI Workbench → Deploy Qwen on /demo/models/aim-catalog
-bash scripts/ensure-qwen-profile-mount.sh demo
+CATALOG_ONLY=1 bash scripts/11-qwen3-6-35b-moe.sh          # catalog CRs (once)
+# AI Workbench → Deploy Qwen3.6-35B-A3B on /demo/models/aim-catalog
+bash scripts/ensure-qwen-moe-profile-mount.sh demo
 bash scripts/fix-aim-httproute-gateway.sh demo
 bash scripts/ensure-qwen-llm-bridge.sh
 TELECOM_SKIP_BUILD=1 bash scripts/09-telecom-assistant.sh
@@ -27,7 +27,7 @@ TELECOM_SKIP_BUILD=1 bash scripts/09-telecom-assistant.sh
 
 ```bash
 kubectl get aimservice -n demo                    # expect Running (wb-aim-*)
-kubectl get endpoints qwen3-6-27b-llm -n default
+kubectl get endpoints qwen-llm -n default
 bash scripts/ensure-qwen-llm-bridge.sh            # if endpoints empty
 ```
 
@@ -45,7 +45,7 @@ Verify Qwen LLM from the cluster:
 
 ```bash
 kubectl run curl-test --rm -it --restart=Never --image=curlimages/curl:8.18.0 -n telecom-assistant -- \
-  curl -sf http://qwen3-6-27b-llm.default.svc.cluster.local/v1/models
+  curl -sf http://qwen-llm.default.svc.cluster.local/v1/models
 ```
 
 Verify CPU speech services:
