@@ -769,3 +769,267 @@ def test_qwen_moe_chat(page: Page, domain: str, devuser_password: str | None):
     expect(page.locator("body")).not_to_contain_text(
         re.compile(r"500|502|connection refused|failed to fetch", re.I)
     )
+
+
+# ---------------------------------------------------------------------------
+# DiffusionGemma 26B tests
+# ---------------------------------------------------------------------------
+
+_SKIP_DIFFUSIONGEMMA = pytest.mark.skipif(
+    not os.environ.get("E2E_DIFFUSIONGEMMA", ""),
+    reason="Set E2E_DIFFUSIONGEMMA=1",
+)
+_SKIP_DIFFUSIONGEMMA_DEPLOY = pytest.mark.skipif(
+    not os.environ.get("E2E_DIFFUSIONGEMMA_DEPLOY", ""),
+    reason="Set E2E_DIFFUSIONGEMMA_DEPLOY=1 for one-time full deploy (destructive)",
+)
+
+_DG_MODEL_NAME = "google-diffusiongemma-26b"
+_DG_DEPLOY_MIN_GB = 95
+_DG_DEPLOY_TIMEOUT_S = 5400
+_DG_CHAT_TIMEOUT_S = 300
+
+
+def _click_diffusiongemma_deploy_button(page: Page) -> None:
+    """Click Deploy on the DiffusionGemma catalog card."""
+    dg_text = page.get_by_text(_DG_MODEL_NAME, exact=True).first
+    dg_text.wait_for(state="visible", timeout=30000)
+    dg_text.scroll_into_view_if_needed()
+
+    card = page.locator("div.flex-col.relative.overflow-hidden").filter(
+        has_text=_DG_MODEL_NAME
+    ).first
+    deploy = card.get_by_role("button", name="Deploy").first
+    deploy.wait_for(state="visible", timeout=10000)
+    deploy.click()
+
+
+def _diffusiongemma_aimservice_names(namespace: str = "demo") -> list[str]:
+    names: list[str] = []
+    for svc in _existing_aimservices(namespace):
+        name = svc.split("/")[-1]
+        model = _kubectl(
+            ["get", "aimservice", name, "-n", namespace, "-o", "jsonpath={.spec.model.name}"]
+        )
+        if model == _DG_MODEL_NAME:
+            names.append(name)
+    return names
+
+
+def _teardown_diffusiongemma_deployments(namespace: str = "demo") -> None:
+    """Remove existing DiffusionGemma AIMService / artifacts before a fresh deploy."""
+    for name in _diffusiongemma_aimservice_names(namespace):
+        _kubectl_run(
+            ["delete", "aimservice", name, "-n", namespace, "--ignore-not-found", "--wait=true", "--timeout=120s"],
+            timeout=150,
+        )
+
+    for tc in _kubectl(["get", "aimtemplatecache", "-n", namespace, "-o", "name"]).splitlines():
+        if tc and "diffusiongemma" in tc.lower():
+            _kubectl_run(["delete", tc, "-n", namespace, "--ignore-not-found"], timeout=60)
+
+    for art in _kubectl(["get", "aimartifact", "-n", namespace, "-o", "name"]).splitlines():
+        if art and "diffusiongemma" in art.lower():
+            _kubectl_run(["delete", art, "-n", namespace, "--ignore-not-found"], timeout=60)
+
+    isvcs = _kubectl(["get", "inferenceservice", "-n", namespace, "-o", "name"])
+    for isvc in isvcs.splitlines():
+        if isvc and "diffusiongemma" in isvc.lower():
+            _kubectl_run(["delete", isvc, "-n", namespace, "--ignore-not-found", "--force", "--grace-period=0"], timeout=60)
+
+
+def _apply_diffusiongemma_post_deploy_fixes(namespace: str = "demo") -> None:
+    profile = _EAI_ROOT / "scripts" / "ensure-diffusiongemma-profile-mount.sh"
+    gateway = _EAI_ROOT / "scripts" / "fix-aim-httproute-gateway.sh"
+    chattable = _EAI_ROOT / "scripts" / "ensure-diffusiongemma-chattable.sh"
+    if profile.is_file():
+        subprocess.run(["bash", str(profile), namespace], check=False, timeout=180)
+    if gateway.is_file():
+        subprocess.run(["bash", str(gateway), namespace], check=False, timeout=120)
+    if chattable.is_file():
+        subprocess.run(["bash", str(chattable)], check=False, timeout=90)
+
+
+def _select_diffusiongemma_chat_model(page: Page) -> None:
+    select_btn = page.locator("button").filter(has_text=re.compile(r"^Select model", re.I)).last
+    select_btn.wait_for(state="visible", timeout=10000)
+    select_btn.click()
+    option = page.locator('[role="option"]').filter(
+        has_text=re.compile(r"diffusiongemma|DiffusionGemma|google-diffusion", re.I)
+    )
+    expect(option.first).to_be_visible(timeout=30000)
+    option.first.click()
+    expect(page.locator('[data-testid="chat-input"]')).to_be_enabled(timeout=15000)
+
+
+@_SKIP_DIFFUSIONGEMMA
+@pytest.mark.order(20)
+def test_aim_catalog_shows_diffusiongemma(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+    expect(page.locator(f"text={_DG_MODEL_NAME}")).to_be_visible(timeout=30000)
+
+    dg_text = page.locator(f"text={_DG_MODEL_NAME}").first
+    dg_bb = dg_text.bounding_box()
+    all_deploy = page.get_by_role("button", name="Deploy").all()
+    closest = min(
+        (b for b in all_deploy if b.bounding_box()),
+        key=lambda b: abs(b.bounding_box()["y"] - dg_bb["y"]),
+    )
+    expect(closest).to_be_enabled()
+
+
+@_SKIP_DIFFUSIONGEMMA
+@pytest.mark.order(21)
+def test_deploy_diffusiongemma_button(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+
+    before = _existing_aimservices()
+    _click_diffusiongemma_deploy_button(page)
+    dialog = page.locator('[role="dialog"]')
+    expect(page.locator("text=Deploy AIM")).to_be_visible(timeout=10000)
+    expect(dialog).to_contain_text(
+        re.compile(r"diffusiongemma|DiffusionGemma|26B", re.I), timeout=5000
+    )
+
+    cancel_btn = page.get_by_role("button", name=re.compile(r"^Cancel$", re.I))
+    if cancel_btn.count() > 0:
+        cancel_btn.first.click()
+    else:
+        page.keyboard.press("Escape")
+
+    expect(page.locator("text=Deploy AIM")).not_to_be_visible(timeout=5000)
+    _cleanup_new_aimservices(before)
+
+
+@_SKIP_DIFFUSIONGEMMA_DEPLOY
+def test_diffusiongemma_deploy_confirm_full(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+
+    free_gb = _free_disk_gb()
+    if free_gb < _DG_DEPLOY_MIN_GB:
+        pytest.fail(
+            f"Need >= {_DG_DEPLOY_MIN_GB} GiB free on / (have {free_gb} GiB). "
+            "Pause other AIM deploys or free disk."
+        )
+
+    print("Teardown existing DiffusionGemma deployments...", flush=True)
+    _teardown_diffusiongemma_deployments()
+
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+
+    _click_diffusiongemma_deploy_button(page)
+    dialog = page.locator('[role="dialog"]')
+    expect(page.locator("text=Deploy AIM")).to_be_visible(timeout=10000)
+    expect(dialog).to_contain_text(
+        re.compile(r"diffusiongemma|DiffusionGemma|26B", re.I), timeout=5000
+    )
+
+    template_row = dialog.get_by_text(
+        re.compile(r"diffusiongemma-26b-r9700|r9700.*gfx1151", re.I)
+    )
+    if template_row.count() > 0:
+        template_row.first.click()
+
+    confirm = dialog.get_by_role(
+        "button", name=re.compile(r"^(Deploy|Confirm|Deploy AIM)$", re.I)
+    )
+    if confirm.count() == 0:
+        confirm = page.get_by_role("button", name=re.compile(r"^Deploy AIM$", re.I))
+    if confirm.count() == 0:
+        confirm = page.locator("button").filter(has_text=re.compile(r"^Deploy$", re.I))
+    assert confirm.count() > 0, "No confirm button in Deploy AIM dialog"
+    print(f"Confirm deploy (buttons={confirm.count()})...", flush=True)
+    expect(confirm.first).to_be_enabled(timeout=15000)
+    confirm.first.click(force=True)
+
+    expect(page.locator("text=Deploy AIM")).not_to_be_visible(timeout=30000)
+    print("Deploy dialog closed — waiting for AIMService...", flush=True)
+
+    appear_deadline = time.time() + 300
+    while time.time() < appear_deadline and not _diffusiongemma_aimservice_names():
+        time.sleep(10)
+    if not _diffusiongemma_aimservice_names():
+        pytest.fail("No DiffusionGemma AIMService created within 5 min after Deploy confirm")
+
+    post_fixes_applied = False
+    wait_deadline = time.time() + _DG_DEPLOY_TIMEOUT_S
+    running = False
+    while time.time() < wait_deadline:
+        for name in _diffusiongemma_aimservice_names():
+            last_status = _kubectl(
+                ["get", "aimservice", name, "-n", "demo", "-o", "jsonpath={.status.status}"]
+            )
+            print(f"  aimservice/{name} status={last_status!r}", flush=True)
+            if last_status == "Running":
+                running = True
+                break
+        if not running:
+            isvcs = _kubectl(["get", "inferenceservice", "-n", "demo", "-o", "name"])
+            if isvcs and not post_fixes_applied:
+                _apply_diffusiongemma_post_deploy_fixes()
+                post_fixes_applied = True
+            time.sleep(60)
+            continue
+        _apply_diffusiongemma_post_deploy_fixes()
+        break
+    else:
+        pytest.fail(f"DiffusionGemma AIMService did not reach Running within {_DG_DEPLOY_TIMEOUT_S}s")
+
+    page.reload()
+    page.wait_for_load_state("networkidle", timeout=15000)
+    expect(page.locator("body")).to_contain_text(re.compile(r"Running|Deployed", re.I), timeout=60000)
+
+
+@_SKIP_DIFFUSIONGEMMA
+@pytest.mark.order(22)
+def test_diffusiongemma_card_status(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    if not _diffusiongemma_aimservice_names():
+        pytest.skip("No DiffusionGemma AIMService — deploy from catalog first")
+
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+    expect(page.locator(f"text={_DG_MODEL_NAME}")).to_be_visible(timeout=30000)
+
+
+@_SKIP_DIFFUSIONGEMMA
+@pytest.mark.order(23)
+def test_diffusiongemma_chat(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    if not _diffusiongemma_aimservice_names():
+        pytest.skip("No DiffusionGemma AIMService — deploy from catalog first")
+
+    _apply_diffusiongemma_post_deploy_fixes()
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CHAT_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=30000)
+
+    chattable = _chattable_response(page, domain)
+    if not chattable.get("aimServices"):
+        pytest.fail(
+            "chattable API returned no AIM services — run: bash scripts/ensure-diffusiongemma-chattable.sh"
+        )
+
+    _select_diffusiongemma_chat_model(page)
+    chat_input = page.locator('[data-testid="chat-input"]')
+    chat_input.fill("Reply with exactly: pong")
+    chat_input.press("Enter")
+
+    expect(page.locator("body")).to_contain_text("pong", timeout=_DG_CHAT_TIMEOUT_S * 1000)
+    expect(page.locator("body")).not_to_contain_text(
+        re.compile(r"500|502|connection refused|failed to fetch", re.I)
+    )

@@ -1,0 +1,41 @@
+# AIM catalog entry for google/diffusiongemma-26B-A4B-it — manually authored.
+#
+# DiffusionGemma is a discrete diffusion LLM (dLLM) on the Gemma 4 MoE backbone.
+# Requires HuggingFace token (Gemma license). Runtime config in aim-clusterprofile.yaml.
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterModel
+metadata:
+  name: google-diffusiongemma-26b
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+  annotations:
+    aim.eai.amd.com/source-registry: ${REGISTRY_HOST}
+    aim.eai.amd.com/source-repository: aim-gfx1151-diffusiongemma-26b
+    aim.eai.amd.com/source-tag: "0.11-therock"
+spec:
+  image: ${REGISTRY_HOST}/aim-gfx1151-diffusiongemma-26b:0.11-therock
+  discovery:
+    createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: ${REGISTRY_HOST}/aim-gfx1151-diffusiongemma-26b:0.11-therock
+    model:
+      canonicalName: google/diffusiongemma-26B-A4B-it
+      hfTokenRequired: true
+      tags:
+        - text-generation
+        - chat
+        - instruction
+        - diffusion
+      descriptionFull: >
+        DiffusionGemma 26B-A4B-it — Google's discrete diffusion language model built on
+        Gemma 4 MoE (26B total / 4B active). Served via vLLM with block-diffusion
+        denoising on gfx1151 (Strix Halo / R9700). Requires HuggingFace token.
+        Profile: diffusiongemma-26b-r9700-gfx1151-latency.
+      recommendedDeployments:
+        - gpuModel: R9700
+          gpuCount: 1
+          precision: bf16
+          metric: latency
+          profileId: diffusiongemma-26b-r9700-gfx1151-latency
+          description: gfx1151 latency profile — ROCM_ATTN, chunked prefill, diffusion sampler

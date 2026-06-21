@@ -62,6 +62,10 @@ POD_READY_TIMEOUT=1800      # 30 min — large model load + vLLM startup
 
 echo "=== 10-qwen3-6-27b (namespace=${AIM_NAMESPACE}) ==="
 
+echo ""
+echo "--- Step -1: Stack startup hardening (Keycloak memory) ---"
+bash "$SCRIPT_DIR/ensure-stack-startup.sh"
+
 # --- Disk guard (need ~60 GiB for weights PVC) ---
 EAI_MIN_FREE_GB=60 check_disk_before_step "10-qwen3-6-27b"
 disk_report "10-qwen3-6-27b-start"

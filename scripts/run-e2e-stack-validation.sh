@@ -26,6 +26,11 @@ fi
 DOMAIN_VAL="$(domain)"
 echo "Domain: ${DOMAIN_VAL}"
 
+# Patch Keycloak memory before JVM cold-start can OOM its 2Gi cgroup (gfx1151 boot freeze).
+bash "$SCRIPT_DIR/ensure-stack-startup.sh" || {
+  echo "WARN: ensure-stack-startup failed — continuing (UIs may be unhealthy)."
+}
+
 # Recover UIs if HTTPS returns 403 (disk-pressure / Keycloak OOM)
 for host in "aiwbui.${DOMAIN_VAL}" "airmui.${DOMAIN_VAL}"; do
   code=$(curl -sk -o /dev/null -w '%{http_code}' "https://${host}/" || echo "000")
@@ -45,6 +50,17 @@ if [[ "${SKIP_QWEN_CATALOG_PREP:-0}" != "1" ]]; then
     CATALOG_ONLY=1 bash "$SCRIPT_DIR/10-qwen3-6-27b.sh"
   else
     echo "Qwen catalog template Ready."
+  fi
+fi
+
+if [[ "${SKIP_DIFFUSIONGEMMA_CATALOG_PREP:-0}" != "1" ]] && [[ "${E2E_DIFFUSIONGEMMA:-0}" == "1" ]]; then
+  DG_TEMPLATE="diffusiongemma-26b-r9700-gfx1151-latency"
+  DG_STATUS=$(kubectl get aimclusterservicetemplate "$DG_TEMPLATE" \
+    -o jsonpath='{.status.status}' 2>/dev/null || echo "")
+  if [[ "$DG_STATUS" != "Ready" ]]; then
+    echo "DiffusionGemma catalog not Ready — CATALOG_ONLY=1 scripts/12-diffusiongemma-26b.sh"
+    CATALOG_ONLY=1 bash "$SCRIPT_DIR/12-diffusiongemma-26b.sh"
+    bash "$SCRIPT_DIR/fix-diffusiongemma-template-discovery.sh" || true
   fi
 fi
 
@@ -69,3 +85,8 @@ echo ""
 echo "=== Stack validation PASS ==="
 echo "One-time full Deploy confirm (destructive, ~52 GiB download):"
 echo "  E2E_QWEN_DEPLOY=1 pytest tests/e2e/test_aiwb_ui.py::test_qwen_deploy_confirm_full -v -s"
+echo ""
+echo "DiffusionGemma catalog + Deploy dialog (non-destructive):"
+echo "  E2E_STACK=1 E2E_AIWB=1 E2E_DIFFUSIONGEMMA=1 pytest tests/e2e/test_aiwb_ui.py -k diffusiongemma -v"
+echo "One-time DiffusionGemma full deploy:"
+echo "  E2E_DIFFUSIONGEMMA_DEPLOY=1 pytest tests/e2e/test_aiwb_ui.py::test_diffusiongemma_deploy_confirm_full -v -s"

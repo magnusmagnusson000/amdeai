@@ -10,6 +10,8 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/stack-startup.sh
+source "$SCRIPT_DIR/lib/stack-startup.sh"
 
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 DOMAIN="${DOMAIN:-$(grep -E '^DOMAIN:' "$EAI_ROOT/bloom-gfx1151.yaml" 2>/dev/null | awk '{print $2}' | tr -d '"' || domain)}"
@@ -76,26 +78,6 @@ wait_for_cluster_auth() {
     || kubectl rollout status deployment/cluster-auth -n cluster-auth --timeout=300s
 }
 
-patch_keycloak_memory() {
-  if ! kubectl get deployment keycloak -n keycloak &>/dev/null; then
-    echo "Keycloak deployment not found — skipping memory patch."
-    return 0
-  fi
-  local limit
-  limit=$(kubectl get deployment keycloak -n keycloak \
-    -o jsonpath='{.spec.template.spec.containers[0].resources.limits.memory}' 2>/dev/null || true)
-  if [[ "$limit" == "4Gi" ]]; then
-    echo "Keycloak memory limit already 4Gi."
-    return 0
-  fi
-  echo "Patching Keycloak memory limit 2Gi → 4Gi (prevents OOM during realm import)..."
-  kubectl patch deployment keycloak -n keycloak --type=json \
-    -p='[
-      {"op":"replace","path":"/spec/template/spec/containers/0/resources/limits/memory","value":"4Gi"},
-      {"op":"replace","path":"/spec/template/spec/containers/0/resources/requests/memory","value":"2Gi"}
-    ]'
-}
-
 configure_rke2_dockerhub_auth() {
   local registries_file="/etc/rancher/rke2/registries.yaml"
   [[ -f "$registries_file" ]] || return 0
@@ -153,20 +135,6 @@ pull_critical_api_images() {
   done
 }
 
-cleanup_evicted_pods() {
-  echo "Removing evicted / failed pods in keycloak, aiwb, airm, cluster-auth..."
-  for ns in keycloak aiwb airm cluster-auth kyverno; do
-    kubectl get pods -n "$ns" --field-selector=status.phase=Failed -o name 2>/dev/null \
-      | xargs -r kubectl delete -n "$ns" 2>/dev/null || true
-  done
-}
-
-wait_for_keycloak() {
-  echo "Waiting for Keycloak readiness..."
-  kubectl wait deployment/keycloak -n keycloak --for=condition=Available --timeout=300s 2>/dev/null \
-    || kubectl rollout status deployment/keycloak -n keycloak --timeout=300s
-}
-
 smoke_test() {
   local code
   code=$(curl -sk -o /dev/null -w "%{http_code}" "https://kc.${DOMAIN}/" || echo "000")
@@ -186,13 +154,13 @@ smoke_test() {
 free_disk_if_low
 kyverno_webhook_failopen
 clear_disk_pressure_taint
-patch_keycloak_memory
+stack_startup_patch_keycloak_memory
 configure_rke2_dockerhub_auth
-cleanup_evicted_pods
+stack_startup_cleanup_evicted_pods
 if [[ -n "${DOCKERHUB_USER:-}" && -n "${DOCKERHUB_TOKEN:-}" ]]; then
   pull_critical_api_images
 fi
-wait_for_keycloak
+stack_startup_wait_for_keycloak 300
 wait_for_cluster_auth
 smoke_test
 

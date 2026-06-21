@@ -94,6 +94,29 @@ def test_stack_qwen_catalog_ready(skip_without_k8s):
 
 @_SKIP
 @pytest.mark.order(1)
+def test_stack_diffusiongemma_catalog_ready(skip_without_k8s):
+    """DiffusionGemma catalog CRs present when E2E_DIFFUSIONGEMMA=1."""
+    if not os.environ.get("E2E_DIFFUSIONGEMMA", ""):
+        pytest.skip("Set E2E_DIFFUSIONGEMMA=1")
+    template = "diffusiongemma-26b-r9700-gfx1151-latency"
+    try:
+        status = _kubectl(
+            ["get", "aimclusterservicetemplate", template, "-o", "jsonpath={.status.status}"]
+        )
+    except subprocess.CalledProcessError:
+        pytest.fail(
+            f"AIMClusterServiceTemplate {template} not found — "
+            "run: CATALOG_ONLY=1 bash scripts/12-diffusiongemma-26b.sh"
+        )
+    assert status == "Ready", (
+        f"Template status={status!r}, expected Ready — "
+        "run: CATALOG_ONLY=1 bash scripts/12-diffusiongemma-26b.sh && "
+        "bash scripts/fix-diffusiongemma-template-discovery.sh"
+    )
+
+
+@_SKIP
+@pytest.mark.order(1)
 def test_stack_https_smoke(domain: str, skip_without_k8s):
     """AI Workbench and AIRM return 200/307 over HTTPS (not 403/5xx)."""
     import ssl

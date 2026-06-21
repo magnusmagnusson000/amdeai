@@ -1,0 +1,47 @@
+# aim-runtime profile YAML — mounted at /workspace/aim-runtime/profiles/google/diffusiongemma-26b/
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: diffusiongemma-26b-r9700-gfx1151-latency-profile
+  namespace: demo
+  labels:
+    aim.eai.amd.com/platform: gfx1151
+    aim.eai.amd.com/profile-id: diffusiongemma-26b-r9700-gfx1151-latency
+data:
+  diffusiongemma-26b-r9700-gfx1151-latency.yaml: |
+    metadata:
+      engine: vllm
+      gpu: R9700
+      gpu_count: 1
+      manual_selection_only: false
+      metric: latency
+      precision: bf16
+      type: general
+    aim_id: google/diffusiongemma-26b
+    model_id: google/diffusiongemma-26B-A4B-it
+    engine_args:
+      tensor-parallel-size: 1
+      gpu-memory-utilization: 0.85
+      max-model-len: 8192
+      max-num-seqs: 4
+      attention-backend: TRITON_ATTN
+      trust-remote-code: true
+      enable-chunked-prefill: true
+      generation-config: vllm
+      hf-overrides: '{"diffusion_sampler": "entropy_bound", "diffusion_entropy_bound": 0.1}'
+      diffusion-config: '{"canvas_length": 256}'
+    env_vars:
+      HSA_OVERRIDE_GFX_VERSION: "11.5.1"
+      HSA_ENABLE_SDMA: "0"
+      MIOPEN_FIND_ENFORCE: "1"
+      PYTORCH_ROCM_ARCH: gfx1151
+      GPU_ARCHS: gfx1151
+      TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+      VLLM_ROCM_USE_AITER: "0"
+      VLLM_ROCM_USE_AITER_MHA: "0"
+      VLLM_ROCM_USE_AITER_RMSNORM: "0"
+      VLLM_ROCM_USE_AITER_LINEAR: "0"
+      VLLM_ROCM_USE_AITER_MOE: "0"
+      VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "0"
+      VLLM_DO_NOT_TRACK: "1"
+      VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS: "900"

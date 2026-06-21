@@ -1,0 +1,17 @@
+# AIMService — managed deploy trigger for DiffusionGemma on gfx1151.
+apiVersion: aim.eai.amd.com/v1alpha2
+kind: AIMService
+metadata:
+  name: diffusiongemma-26b
+  namespace: demo
+spec:
+  model:
+    name: google-diffusiongemma-26b
+  template:
+    name: diffusiongemma-26b-r9700-gfx1151-latency
+  caching:
+    mode: Shared
+  replicas: 1
+  env:
+    - name: AIM_ID
+      value: google/diffusiongemma-26b

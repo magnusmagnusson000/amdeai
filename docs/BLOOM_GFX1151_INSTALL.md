@@ -200,6 +200,42 @@ kubectl patch application aiwb -n argocd --type merge \
   -p '{"spec":{"syncPolicy":null}}'
 ```
 
+### Phase 5 — Staged post-reboot startup (gfx1151, recommended)
+
+After reboot, RKE2 restores every Deployment at once. On a 128 GiB unified-memory Z13 with no swap, Keycloak JVM JIT + amdgpu SVM page restore can freeze the desktop before the stack is usable.
+
+Install once:
+
+```bash
+bash scripts/install-staged-startup-service.sh
+```
+
+This installs two systemd units:
+
+| Unit | When | What |
+|------|------|------|
+| `amdeai-staged-cluster-startup.service` | After `rke2-server` (+ 30s) | Scales heavy workloads to 0, patches Keycloak 2Gi→4Gi, syncs ArgoCD apps **one phase at a time** (9 phases, 20s pause between) |
+| `amdeai-cluster-quiesce.service` | Before shutdown/reboot | Scales inference, Keycloak, AIWB, AIRM to 0 so the next boot starts clean |
+
+Phases are defined in `scripts/config/staged-startup-phases.conf`. Inference stays paused after staged startup — deploy models from Workbench when ready.
+
+Manual run / resume from phase 5:
+
+```bash
+sudo systemctl start rke2-server
+bash scripts/staged-cluster-startup.sh
+STAGED_START_PHASE=5 bash scripts/staged-cluster-startup.sh   # resume
+```
+
+Emergency stop:
+
+```bash
+bash scripts/pause-cluster.sh          # scale down, keep RKE2
+bash scripts/pause-cluster.sh --stop   # also stop rke2-server
+```
+
+Logs: `journalctl -u amdeai-staged-cluster-startup -f` and `~/.cache/amdeai/staged-startup.log`
+
 ---
 
 ## What Bloom installs (gfx1151 path)
@@ -317,7 +353,7 @@ The scripted k3s path in [README.md](../README.md) remains available for lab/deb
 | `--tags metallb,domain` shows `0 ok, 0 changed` | Bloom build before tag fix — inner Ansible tasks skipped | Rebuild bloom from `feat/gfx1151-support` (tags on `metallb.yaml` / `domain.yaml` tasks); re-run; expect `3 ok, 4 changed` |
 | ExternalSecrets `SecretSyncedError`, pods `CreateContainerConfigError` | CoreDNS rewrite rule with **empty** `domain` — all `*.svc.cluster.local` names resolve to envoy-gateway | Ensure `DOMAIN` is set **before** install. If broken: delete `helmchartconfig/rke2-coredns` in `kube-system`, patch CoreDNS ConfigMap to remove the `rewrite` line, restart `rke2-coredns` and `external-secrets` |
 | `airm` / `aiwb` ArgoCD Applications missing | `cluster-forge` parent sync failed while DNS was broken | After DNS fix: `helm template cluster-forge ... \| kubectl apply -f -` (see ClusterForge clone under `.bloom/clusterforge/`) or hard-refresh `cluster-forge` Application |
-| Keycloak `OOMKilled` on Z13 | Default memory limits too low for laptop | Increase Keycloak deployment memory request/limit (e.g. 4Gi) or close other workloads; wait for sync to settle |
+| Keycloak `OOMKilled` on Z13 / host freeze after reboot | Default 2Gi cgroup limit; 30+ pods start at once; JVM JIT + amdgpu SVM thrash | `bash scripts/install-staged-startup-service.sh` (staged boot). Emergency: `bash scripts/pause-cluster.sh --stop` |
 | HTTPS URLs `connection refused` from browser | envoy-gateway Gateway not programmed / MetalLB / GitOps still syncing | Wait 30–60 min after bootstrap; `kubectl get gateway -n envoy-gateway-system`; ensure MetalLB Application is Synced |
 | HTTPS returns **403** or login page never loads | UI pods **Pending** — node has `disk-pressure` taint | Check `kubectl describe node \| grep -E Taints\|DiskPressure` and `df -h /`. Free disk (often Docker build cache: `docker builder prune -a -f && docker system prune -a -f`). Restart RKE2 if taint persists: `sudo systemctl restart rke2-server`. Wait for `keycloak`, `aiwb-ui`, `airm-ui` pods Running, then re-run E2E |
 

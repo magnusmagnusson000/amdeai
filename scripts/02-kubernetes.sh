@@ -122,11 +122,24 @@ sync_k3s_kubeconfig() {
   echo "kubeconfig: $KUBECONFIG (context: $(kubectl config current-context 2>/dev/null || echo default))"
 }
 
-disable_swap_for_kubernetes() {
+configure_swap_for_kubernetes() {
+  if [[ "${EAI_ALLOW_SWAP:-1}" == "1" ]]; then
+    echo "EAI_ALLOW_SWAP=1 — keeping host swap enabled (kubelet failSwapOn=false on k3s v1.28+)."
+    if [[ -d /etc/rancher/k3s ]]; then
+      sudo tee /etc/rancher/k3s/amdeai-kubelet-swap.yaml >/dev/null <<'EOF'
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+memorySwap:
+  swapBehavior: LimitedSwap
+EOF
+    fi
+    bash "$SCRIPT_DIR/enable-kubernetes-swap.sh"
+    return 0
+  fi
   eai_backup_file /etc/fstab fstab
   if swapon --show 2>/dev/null | grep -q .; then
     sudo swapoff -a 2>/dev/null || true
-    echo "Swap disabled for current session (k3s requirement)."
+    echo "Swap disabled for current session (EAI_ALLOW_SWAP=0 legacy mode)."
   else
     echo "Swap already off."
   fi
@@ -244,7 +257,7 @@ setup_k3d_cluster() {
 }
 
 setup_k3s_cluster() {
-  disable_swap_for_kubernetes
+  configure_swap_for_kubernetes
   repair_k3s_kubelet_sysctls_if_needed
   force_k3s_reinstall
 
@@ -262,6 +275,8 @@ setup_k3s_cluster() {
     --disable=traefik \
     --disable=servicelb \
     --kubelet-arg=--allowed-unsafe-sysctls=net.* \
+    --kubelet-arg=--fail-swap-on=false \
+    --kubelet-arg=--config=/etc/rancher/k3s/amdeai-kubelet-swap.yaml \
     --kube-apiserver-arg=allow-privileged=true" sh -
   wait_for_k3s_api "k3s API after install"
   sync_k3s_kubeconfig

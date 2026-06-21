@@ -1,0 +1,31 @@
+{
+  "platform": "gfx1151 / R9700 (128 GiB UMA, no swap)",
+  "notes": "Reference numbers from prior agent benchmark runs on this cluster.",
+  "models": {
+    "qwen3-6-27b-no-mtp": {
+      "label": "Qwen3.6-27B (no MTP)",
+      "source": "tests/e2e agent fad54df7 — bench_qwen_mtp.py, max_tokens=128",
+      "ttft_median_s": 0.40,
+      "ttft_mean_s": 0.42,
+      "tps_median": 4.23,
+      "tps_mean": 4.23,
+      "total_time_128tok_s": 30.7
+    },
+    "qwen3-6-27b-mtp": {
+      "label": "Qwen3.6-27B (MTP warm)",
+      "source": "tests/e2e agent fad54df7 — bench_qwen_mtp.py, max_tokens=128",
+      "ttft_median_s": 0.67,
+      "ttft_mean_s": 0.65,
+      "tps_median": 7.29,
+      "tps_mean": 7.24,
+      "total_time_128tok_s": 18.3
+    },
+    "qwen3-6-35b-moe": {
+      "label": "Qwen3.6-35B-A3B MoE",
+      "source": "tests/perf/test_qwen_moe_perf.py thresholds (no recorded run in transcripts)",
+      "ttft_threshold_max_s": 10.0,
+      "throughput_min_tok_s": 8.0,
+      "p95_latency_ceiling_s": 120.0
+    }
+  }
+}
