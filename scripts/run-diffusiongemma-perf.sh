@@ -32,6 +32,21 @@ else
   ENDPOINT="${IS_URL:-https://${NODE_IP}/demo/models/diffusiongemma-26b}"
 fi
 
+# Fall back to port-forward if gateway returns connection errors
+if ! curl -sk --max-time 5 "${ENDPOINT%/}/health" -o /dev/null 2>/dev/null; then
+  POD=$(kubectl get pods -n "${NS}" -l component=predictor --field-selector=status.phase=Running \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  if [[ -n "${POD}" ]]; then
+    PF_PORT="${PERF_PF_PORT:-18080}"
+    kubectl port-forward -n "${NS}" "${POD}" "${PF_PORT}:8000" >/tmp/dg-pf.log 2>&1 &
+    PF_PID=$!
+    sleep 2
+    ENDPOINT="http://127.0.0.1:${PF_PORT}"
+    trap "kill ${PF_PID} 2>/dev/null || true" EXIT
+    echo "Gateway unreachable; using port-forward ${ENDPOINT}"
+  fi
+fi
+
 echo "Benchmark endpoint: ${ENDPOINT}"
 echo "Model: ${MODEL}"
 

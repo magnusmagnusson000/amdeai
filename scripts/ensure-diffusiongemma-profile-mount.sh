@@ -45,6 +45,15 @@ pred['volumes'].append({'name':'${VOL}','configMap':{'name':'${CM}'}})
 c=pred['containers'][0]
 c['volumeMounts']=[m for m in c.get('volumeMounts',[]) if m.get('name')!='${VOL}']
 c['volumeMounts'].append({'name':'${VOL}','mountPath':'${MOUNT_PATH}','readOnly':True})
+env=c.setdefault('env',[])
+strip_names={'VLLM_USE_V1','HSA_XNACK','PYTORCH_HIP_ALLOC_CONF'}
+env=[e for e in env if e.get('name') not in strip_names]
+env.extend([
+  {'name':'VLLM_USE_V1','value':'0'},
+  {'name':'HSA_XNACK','value':'0'},
+  {'name':'PYTORCH_HIP_ALLOC_CONF','value':'expandable_segments:False'},
+])
+c['env']=env
 print(json.dumps({'spec':{'predictor':pred}}))
 " | kubectl patch inferenceservice "$name" -n "$NS" --type=merge -p "$(cat)"
   kubectl delete pod -n "$NS" -l "serving.kserve.io/inferenceservice=${name}" --force --grace-period=0 2>/dev/null || true

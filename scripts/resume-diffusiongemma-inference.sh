@@ -9,11 +9,14 @@
 # Usage:
 #   bash scripts/resume-diffusiongemma-inference.sh
 #   KEEP_RUNNING=1 bash scripts/resume-diffusiongemma-inference.sh   # leave minReplicas=1 (unsafe on gfx1151)
+#   GPU_OBSERVE_MODE=1 bash scripts/resume-diffusiongemma-inference.sh  # tolerate benign KFD warnings
 #   MIN_MEM_AVAIL_GIB=80 bash scripts/resume-diffusiongemma-inference.sh
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/diffusiongemma-guard.sh
+source "$SCRIPT_DIR/lib/diffusiongemma-guard.sh"
 
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 NS="${AIM_NAMESPACE:-demo}"
@@ -21,6 +24,9 @@ MIN_MEM="${MIN_MEM_AVAIL_GIB:-80}"
 ISVC="${DIFFUSIONGEMMA_ISVC:-diffusiongemma-26b-48844644}"
 GPU_WARN_WINDOW_MIN="${GPU_WARN_WINDOW_MIN:-3}"
 KEEP_RUNNING="${KEEP_RUNNING:-0}"
+GPU_OBSERVE_MODE="${GPU_OBSERVE_MODE:-0}"
+export GPU_OBSERVE_MODE GPU_WARN_WINDOW_MIN
+DG_PSI_HIGH_SAMPLES=0
 
 pause_inference() {
   bash "$SCRIPT_DIR/pause-aim-inference.sh" "${NS}" diffusiongemma || true
@@ -30,15 +36,14 @@ if [[ "${KEEP_RUNNING}" != "1" ]]; then
   trap pause_inference EXIT
 fi
 
-mem_avail_gib() {
-  LANG=C free -g | awk '/^Mem:/{print $7}'
-}
-
 echo "=== resume-diffusiongemma-inference ==="
+if [[ "${GPU_OBSERVE_MODE}" == "1" ]]; then
+  echo "GPU_OBSERVE_MODE=1: benign KFD userptr warnings logged; critical stalls + PSI/memory still abort."
+fi
 echo "Running hard preflight guard..."
 bash "$SCRIPT_DIR/preflight-diffusiongemma-guard.sh"
 
-AVAIL=$(mem_avail_gib)
+AVAIL=$(dg_mem_avail_gib)
 echo "Memory available: ${AVAIL} GiB (minimum: ${MIN_MEM} GiB)"
 if [[ "${AVAIL}" -lt "${MIN_MEM}" ]]; then
   echo "ERROR: Need >= ${MIN_MEM} GiB available memory before loading DiffusionGemma."
@@ -56,7 +61,7 @@ kubectl rollout status deploy/aim-engine-controller-manager -n aim-system --time
 kubectl rollout status deploy/kserve-controller-manager -n kserve-system --timeout=180s
 kubectl rollout status deploy/airm-agent-webhook -n airm --timeout=180s
 
-AVAIL=$(mem_avail_gib)
+AVAIL=$(dg_mem_avail_gib)
 echo "Memory after operators: ${AVAIL} GiB available"
 if [[ "${AVAIL}" -lt $((MIN_MEM - 10)) ]]; then
   echo "ERROR: Operators consumed too much memory (${AVAIL} GiB left)."
@@ -72,24 +77,19 @@ kubectl patch inferenceservice "${ISVC}" -n "${NS}" --type=json \
 
 echo "Waiting for PredictorReady (max 30 min), monitoring memory..."
 DEADLINE=$((SECONDS + 1800))
+export DG_BASELINE_GPU_CRITICAL="$(dg_recent_gpu_critical_count "${GPU_WARN_WINDOW_MIN}")"
+export DG_BASELINE_GPU_BENIGN="$(dg_recent_gpu_benign_count "${GPU_WARN_WINDOW_MIN}")"
+echo "  Stall baselines: gpu_critical=${DG_BASELINE_GPU_CRITICAL} gpu_benign=${DG_BASELINE_GPU_BENIGN} (window=${GPU_WARN_WINDOW_MIN}min)"
 while (( SECONDS < DEADLINE )); do
-  AVAIL=$(mem_avail_gib)
-  GPU_WARNINGS=$( \
-    (journalctl -k -b --since "${GPU_WARN_WINDOW_MIN} minutes ago" --no-pager \
-      | rg -i 'amdgpu_amdkfd_restore_userptr_worker|svm_range_restore_work.*hogged CPU|Failed to resume KFD|queue evicted' \
-      || true) \
-    | awk 'NF{c++} END{print c+0}' \
-  )
+  AVAIL=$(dg_mem_avail_gib)
+  GPU_BENIGN=$(dg_recent_gpu_benign_count "${GPU_WARN_WINDOW_MIN}")
+  GPU_CRITICAL=$(dg_recent_gpu_critical_count "${GPU_WARN_WINDOW_MIN}")
+  PSI=$(dg_memory_psi_avg10)
   READY=$(kubectl get inferenceservice "${ISVC}" -n "${NS}" \
     -o jsonpath='{.status.conditions[?(@.type=="PredictorReady")].status}' 2>/dev/null || echo "")
-  echo "  PredictorReady=${READY:-?} mem_avail=${AVAIL}GiB recent_gpu_warns=${GPU_WARNINGS}"
-  if [[ "${AVAIL}" -lt 15 ]]; then
-    echo "ERROR: Memory below 15 GiB — pausing inference to protect host."
-    pause_inference
-    exit 3
-  fi
-  if [[ "${GPU_WARNINGS}" -gt 0 ]]; then
-    echo "ERROR: amdgpu/KFD stall warning detected while loading model; pausing inference."
+  echo "  PredictorReady=${READY:-?} mem_avail=${AVAIL}GiB psi_avg10=${PSI} gpu_benign=${GPU_BENIGN} gpu_critical=${GPU_CRITICAL} psi_high_samples=${DG_PSI_HIGH_SAMPLES:-0}"
+  if ! dg_watchdog_check_load; then
+    echo "ERROR: Watchdog abort — ${dg_abort_reason}"
     pause_inference
     exit 4
   fi

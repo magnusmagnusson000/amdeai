@@ -5,8 +5,9 @@
 #
 # Key tuning:
 #   - max-model-len: 8192       practical single-GPU limit on 128 GiB unified memory
-#   - gpu-memory-utilization: 0.85
-#   - enable-chunked-prefill    required for diffusion; incompatible with enforce-eager
+#   - gpu-memory-utilization: 0.60  leaves headroom for desktop/k8s on 128 GiB UMA (~97 GiB free typical)
+#   - enforce-eager: true         match proven Qwen gfx1151 profile; avoids HIP graph capture stalls
+#   - enable-chunked-prefill      required for diffusion (compatible with VLLM_USE_V1=0)
 #   - hf-overrides / diffusion-config  vLLM diffusion sampler settings
 apiVersion: aim.eai.amd.com/v1alpha2
 kind: AIMClusterProfile
@@ -37,10 +38,11 @@ spec:
 
   engineArgs:
     tensor-parallel-size: "1"
-    gpu-memory-utilization: "0.85"
+    gpu-memory-utilization: "0.60"
     max-model-len: "8192"
     max-num-seqs: "4"
     attention-backend: TRITON_ATTN
+    enforce-eager: true
     trust-remote-code: true
     enable-chunked-prefill: true
     generation-config: vllm
@@ -72,8 +74,12 @@ spec:
       value: "11.5.1"
     - name: HSA_ENABLE_SDMA
       value: "0"
+    - name: HSA_XNACK
+      value: "0"
     - name: PYTORCH_ROCM_ARCH
       value: gfx1151
+    - name: PYTORCH_HIP_ALLOC_CONF
+      value: expandable_segments:False
     - name: VLLM_USE_V1
       value: "0"
 

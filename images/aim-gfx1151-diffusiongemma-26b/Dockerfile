@@ -9,7 +9,7 @@
 FROM amdenterpriseai/aim-base:0.11 AS aim-src
 
 # Pin dated TheRock build (ROCm userspace + vLLM); :latest lagged during gfx1151 bring-up.
-FROM kyuz0/vllm-therock-gfx1151:20260617-094558
+FROM kyuz0/vllm-therock-gfx1151:latest
 
 COPY --from=aim-src /workspace/aim-runtime /workspace/aim-runtime
 COPY --from=aim-src /workspace/entrypoint.py /workspace/entrypoint.py
@@ -23,7 +23,7 @@ ENV AIM_CONFIG_PATH="/workspace/aim-runtime/config"
 ENV AIM_ALLOW_GENERAL_PROFILE_FALLBACK="true"
 ENV AIM_ACCELERATOR_FAMILY="instinct"
 ENV AIM_ACCELERATOR_TYPE="gpu"
-ENV AIM_UPSTREAM_IMAGE_REF="docker.io/kyuz0/vllm-therock-gfx1151:20260617-094558"
+ENV AIM_UPSTREAM_IMAGE_REF="docker.io/kyuz0/vllm-therock-gfx1151:latest"
 ENV AIM_ID="google/diffusiongemma-26b"
 
 LABEL com.amd.aim.model.canonicalName="google/diffusiongemma-26b-a4b-it"

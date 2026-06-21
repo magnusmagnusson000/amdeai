@@ -14,11 +14,20 @@ Usage:
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 
 import httpx
 import pytest
 
-from tests.perf.bench_common import BenchConfig, measure_concurrent, measure_latency_distribution, measure_throughput, measure_ttft
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from bench_common import (  # noqa: E402
+    BenchConfig,
+    measure_concurrent,
+    measure_latency_distribution,
+    measure_throughput,
+    measure_ttft,
+)
 
 _ENDPOINT = os.environ.get("PERF_ENDPOINT", "").rstrip("/")
 _MODEL = os.environ.get("PERF_MODEL", "google/diffusiongemma-26B-A4B-it")
@@ -63,10 +72,7 @@ def test_ttft_short_prompt():
 
 @_SKIP
 def test_throughput_sustained():
-    tps, tokens, elapsed = measure_throughput(
-        _cfg(),
-        prompt="Explain discrete diffusion language models in two sentences.",
-    )
+    tps, tokens, elapsed = measure_throughput(_cfg())
     print(f"\n  Throughput: {tps:.2f} tok/s ({tokens} tokens in {elapsed:.1f}s)")
     assert tps >= _THROUGHPUT_MIN_TOKS, f"Throughput {tps:.2f} tok/s below {_THROUGHPUT_MIN_TOKS}"
 

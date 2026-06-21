@@ -24,9 +24,14 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/diffusiongemma-guard.sh
+source "$SCRIPT_DIR/lib/diffusiongemma-guard.sh"
 
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 AIM_NAMESPACE="${AIM_NAMESPACE:-demo}"
+GPU_OBSERVE_MODE="${GPU_OBSERVE_MODE:-0}"
+export GPU_OBSERVE_MODE
+DG_PSI_HIGH_SAMPLES=0
 PROFILE_NAME="diffusiongemma-26b-r9700-gfx1151-latency"
 SERVICE_NAME="diffusiongemma-26b"
 MODEL_NAME="google-diffusiongemma-26b"
@@ -40,10 +45,6 @@ CATALOG_ONLY="${CATALOG_ONLY:-0}"
 PROFILE_READY_TIMEOUT=120
 DOWNLOAD_TIMEOUT=5400
 POD_READY_TIMEOUT=1800
-
-mem_avail_gib() {
-  LANG=C free -g | awk '/^Mem:/{print $7}'
-}
 
 echo "=== 12-diffusiongemma-26b (namespace=${AIM_NAMESPACE}) ==="
 
@@ -310,20 +311,18 @@ while [[ $ELAPSED -lt 120 ]]; do
 done
 
 if [[ -n "$ISVC_NAME" ]]; then
+  GPU_WARN_WINDOW_MIN=3
   ELAPSED=0
   while [[ $ELAPSED -lt $POD_READY_TIMEOUT ]]; do
-    AVAIL=$(mem_avail_gib)
-    GPU_WARNINGS=$( \
-      (journalctl -k -b --since "3 minutes ago" --no-pager \
-        | rg -i 'amdgpu_amdkfd_restore_userptr_worker|svm_range_restore_work.*hogged CPU|Failed to resume KFD|queue evicted' \
-        || true) \
-      | awk 'NF{c++} END{print c+0}' \
-    )
+    AVAIL=$(dg_mem_avail_gib)
+    GPU_BENIGN=$(dg_recent_gpu_benign_count "${GPU_WARN_WINDOW_MIN}")
+    GPU_CRITICAL=$(dg_recent_gpu_critical_count "${GPU_WARN_WINDOW_MIN}")
+    PSI=$(dg_memory_psi_avg10)
     IS_STATUS=$(kubectl get inferenceservice "${ISVC_NAME}" -n "${AIM_NAMESPACE}" \
       -o jsonpath='{.status.conditions[?(@.type=="PredictorReady")].status}' 2>/dev/null || echo "")
-    echo "  PredictorReady=${IS_STATUS:-?} mem_avail=${AVAIL}GiB recent_gpu_warns=${GPU_WARNINGS} (${ELAPSED}s)"
-    if [[ "${AVAIL}" -lt 15 ]] || [[ "${GPU_WARNINGS}" -gt 0 ]]; then
-      echo "ERROR: Safety guard tripped while waiting for predictor."
+    echo "  PredictorReady=${IS_STATUS:-?} mem_avail=${AVAIL}GiB psi_avg10=${PSI} gpu_benign=${GPU_BENIGN} gpu_critical=${GPU_CRITICAL} (${ELAPSED}s)"
+    if ! dg_watchdog_check_load; then
+      echo "ERROR: Safety guard tripped — ${dg_abort_reason}"
       bash "$SCRIPT_DIR/pause-aim-inference.sh" "${AIM_NAMESPACE}" diffusiongemma || true
       exit 2
     fi
