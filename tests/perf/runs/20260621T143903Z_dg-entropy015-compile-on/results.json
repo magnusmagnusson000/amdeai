@@ -1,0 +1,45 @@
+{
+  "model": "google/diffusiongemma-26B-A4B-it",
+  "endpoint": "http://127.0.0.1:18082",
+  "warmup_elapsed_s": 25.692404101999273,
+  "warmup_tokens": 355,
+  "ttft_s": 1.2830888950011285,
+  "ttft_runs_s": [
+    1.3000220760004595,
+    1.2830888950011285,
+    1.2781942629990226
+  ],
+  "ttft_median_s": 1.2830888950011285,
+  "ttft_mean_s": 1.2871017446668702,
+  "throughput_tok_s": 8.267280860862876,
+  "throughput_tokens": 250,
+  "throughput_elapsed_s": 30.23968874500133,
+  "throughput_long_tok_s": 42.296541603367274,
+  "throughput_long_per_request_tok_s": 42.32124838365675,
+  "throughput_long_tokens": 768,
+  "throughput_long_elapsed_s": 18.15751290499975,
+  "throughput_long_max_tokens": 256,
+  "latency_p50_s": 2.943292381998617,
+  "latency_p95_s": 3.5672442505001527,
+  "latency_by_size": {
+    "short": {
+      "p50_s": 2.729609148998861,
+      "p95_s": 2.905135113999859,
+      "avg_s": 2.6912188776659605
+    },
+    "medium": {
+      "p50_s": 2.943292381998617,
+      "p95_s": 2.978018849599175,
+      "avg_s": 2.815786565998375
+    },
+    "long": {
+      "p50_s": 2.971873588001472,
+      "p95_s": 3.6863183829998887,
+      "avg_s": 3.102589486332969
+    }
+  },
+  "concurrent_ok": 4,
+  "concurrent_total": 4,
+  "concurrent_wall_s": 11.59902176399919,
+  "errors": []
+}

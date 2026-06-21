@@ -18,7 +18,9 @@
 | Weights (`AIMArtifact`) | Downloaded (~48 GiB PVC) |
 | Custom AIM image | `{hostname}:32000/aim-gfx1151-diffusiongemma-26b:0.11-therock` on `kyuz0/vllm-therock-gfx1151:latest` |
 | Inference (predictor) | **Working** with tuned profile below |
-| Performance (extended, Qwen-aligned prompts + warmup) | TTFT **1.06 s**, throughput **9.07 tok/s**, 4/4 concurrent |
+| Performance (extended, Qwen-aligned prompts + warmup) | TTFT **1.05 s**, long-output **46.7 tok/s** per-request, 4/4 concurrent |
+
+> **Throughput note:** the short-output throughput test (5×50 tok) reports only ~8.7 tok/s, but that is a *measurement artifact* — DiffusionGemma denoises a fixed 256-token canvas per block regardless of requested length, so tiny outputs pay nearly the full per-canvas cost. The real generation speed measured with 256-token outputs is **~46 tok/s**. Always judge dLLM throughput with canvas-sized (≥256 tok) generations.
 
 ---
 
@@ -49,7 +51,8 @@ Applied in [`manifests/aim/diffusiongemma-26b/diffusiongemma-26b-r9700-gfx1151-l
 | `attention-backend` | `TRITON_ATTN` | `ROCM_ATTN` fails (`head_size not supported`) for this model |
 | `enable-chunked-prefill` | `true` | Required for diffusion serving |
 | `max-model-len` | `8192` | Practical limit on 128 GiB UMA |
-| `diffusion-config` | `{"canvas_length": 256}` | Block diffusion canvas |
+| `diffusion-config` | `{"canvas_length": 256}` | Block diffusion canvas (leave at 256; training-tied) |
+| `diffusion_entropy_bound` | **0.15** | Tuned 2026-06-21: best TPS/TTFT of {0.10, 0.15, 0.20} on gfx1151. Higher commits tokens in fewer denoise passes; 0.20 regressed |
 | Container env (ISVC patch) | `HSA_XNACK=0`, `PYTORCH_HIP_ALLOC_CONF=expandable_segments:False`, `VLLM_USE_V1=0` | Reduce SVM churn; note v0.22+ may ignore `VLLM_USE_V1` |
 
 ---
@@ -328,17 +331,28 @@ Uses the same prompts as [`tests/perf/test_qwen_moe_perf.py`](../tests/perf/test
 | Concurrent | *Name one advantage of MoE over dense models in one sentence.* |
 | Latency sizes | short (32→30 tok), medium (256→60), long (1024→80) via repeated `"silicon "` filler |
 
-**Extended results on this cluster (2026-06-21, after warmup):**
+**Extended results on this cluster (2026-06-21, entropy_bound=0.15, after multi-shape warmup):**
 
 | Metric | DiffusionGemma | Qwen3.6-27B ref | Qwen3.6-35B MoE threshold |
 |--------|----------------|-----------------|---------------------------|
-| Warmup | 50 tok / 5.77 s | — | — |
-| TTFT (3 runs, median) | **1.06 s** | 0.40 s | ≤ 10 s ✓ |
-| Throughput (5×50 tok) | **9.07 tok/s** | 4.23 tok/s | ≥ 8.0 ✓ |
-| Latency P95 | **3.40 s** | — | ≤ 120 s ✓ |
-| Concurrent | **4/4** in 10.5 s | — | — |
+| TTFT (3 runs, median) | **1.05 s** | 0.40 s | ≤ 10 s ✓ |
+| Throughput (long, 256 tok/req) | **46.7 tok/s** per-request | — | — |
+| Throughput (short 5×50 tok) | 8.7 tok/s *(artifact, see note)* | 4.23 tok/s | ≥ 8.0 ✓ |
+| Latency P95 | **3.25 s** | — | ≤ 120 s ✓ |
+| Concurrent | **4/4** | — | — |
 
-Cold TTFT (no warmup) was ~9.6 s; always run one warmup completion before measuring TTFT.
+Cold TTFT (no warmup) was ~9.6 s; the benchmark now does a multi-shape warmup (short/medium/long + canvas-sized output) so Triton kernels (`kernel_unified_attention`, `fused_moe_kernel`) JIT off-clock instead of spiking the first scored requests.
+
+**Tuning sweep (2026-06-21).** All variants are within a ~42–48 tok/s band; TTFT is structurally ~1.0 s (prefill + one canvas denoise) and barely moves:
+
+| Config | TTFT (s) | Long TPS (tok/s) | Verdict |
+|--------|----------|------------------|---------|
+| entropy 0.10, 48 steps, eager (prior) | 1.07 | 45.7 | baseline |
+| **entropy 0.15** | **1.04** | **48.1** | **adopted** |
+| entropy 0.20 | 1.04 | 45.4 | regressed |
+| entropy 0.15 + `max_denoising_steps`=32 | 1.04 | 43.3 | no gain (adaptive stop already < 48) |
+| entropy 0.15 + `enforce-eager: false` (torch.compile + CUDA graphs) | 1.28 | 42.3 | **worse** — keep eager on gfx1151 |
+| entropy 0.15 + AITER MoE (`VLLM_ROCM_USE_AITER[_MOE]=1`) | 1.04 | 46.3 | neutral — kept off for stability |
 
 Example manual TTFT + throughput via port-forward:
 
@@ -401,7 +415,7 @@ python -m vllm.entrypoints.openai.api_server \
   --trust-remote-code \
   --enable-chunked-prefill \
   --generation-config vllm \
-  --hf-overrides '{"diffusion_sampler": "entropy_bound", "diffusion_entropy_bound": 0.1}' \
+  --hf-overrides '{"diffusion_sampler": "entropy_bound", "diffusion_entropy_bound": 0.15}' \
   --diffusion-config '{"canvas_length": 256}' \
   --port 8000
 ```

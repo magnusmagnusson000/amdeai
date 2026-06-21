@@ -43,6 +43,11 @@ class BenchResult:
     throughput_tok_s: float | None = None
     throughput_tokens: int = 0
     throughput_elapsed_s: float = 0.0
+    throughput_long_tok_s: float | None = None
+    throughput_long_per_request_tok_s: float | None = None
+    throughput_long_tokens: int = 0
+    throughput_long_elapsed_s: float = 0.0
+    throughput_long_max_tokens: int = 0
     latency_p50_s: float | None = None
     latency_p95_s: float | None = None
     latency_by_size: dict[str, dict[str, float]] = field(default_factory=dict)
@@ -129,6 +134,38 @@ def measure_throughput(
     return toks_per_sec, total_tokens, elapsed
 
 
+def measure_throughput_long(
+    cfg: BenchConfig,
+    n_requests: int = 3,
+    tokens_per_request: int = 256,
+    prompt: str = PROMPT_THROUGHPUT,
+) -> tuple[float, float, int, float]:
+    """Long-output generation throughput.
+
+    DiffusionGemma denoises a fixed 256-token canvas per block regardless of how
+    many tokens are requested, so short-output throughput badly understates real
+    generation speed. This measures with a canvas-sized output and reports both
+    aggregate tok/s and the mean per-request generation tok/s (the headline
+    diffusion metric).
+    """
+    per_request_tps: list[float] = []
+    total_tokens = 0
+    t_start = time.perf_counter()
+    for _ in range(n_requests):
+        t0 = time.perf_counter()
+        resp = _chat(cfg, prompt, max_tokens=tokens_per_request)
+        resp.raise_for_status()
+        dt = time.perf_counter() - t0
+        toks = _token_count(resp)
+        total_tokens += toks
+        if dt > 0 and toks > 0:
+            per_request_tps.append(toks / dt)
+    elapsed = time.perf_counter() - t_start
+    agg_tps = total_tokens / elapsed if elapsed > 0 else 0.0
+    per_req_mean = statistics.mean(per_request_tps) if per_request_tps else 0.0
+    return agg_tps, per_req_mean, total_tokens, elapsed
+
+
 def measure_latency_distribution(cfg: BenchConfig) -> tuple[dict[str, dict[str, float]], float, float]:
     prompt_configs = LATENCY_PROMPT_CONFIGS
     samples_per_size = 3
@@ -187,12 +224,31 @@ def measure_concurrent(cfg: BenchConfig, n_concurrent: int = 4, max_tokens: int 
 
 
 def run_warmup(cfg: BenchConfig, max_tokens: int = 50) -> tuple[float, int]:
-    """Single completion to JIT-compile kernels / warm caches (discarded from scored metrics)."""
+    """Multi-shape warmup to JIT-compile kernels across prompt/output sizes (discarded).
+
+    A single warmup completion leaves Triton kernels (kernel_unified_attention,
+    fused_moe_kernel) to JIT during the first scored requests, spiking TTFT. We
+    warm the throughput prompt, each latency input shape, and a long (canvas-sized)
+    output so the scored runs hit warm kernels.
+    """
+    warmup_calls: list[tuple[str, int]] = [
+        (PROMPT_WARMUP, max_tokens),
+        (_make_prompt(32), 32),
+        (_make_prompt(256), 64),
+        (_make_prompt(1024), 64),
+        (PROMPT_THROUGHPUT, 256),
+    ]
     t0 = time.perf_counter()
-    resp = _chat(cfg, PROMPT_WARMUP, max_tokens=max_tokens)
-    resp.raise_for_status()
+    total_tokens = 0
+    for prompt, mt in warmup_calls:
+        try:
+            resp = _chat(cfg, prompt, max_tokens=mt)
+            resp.raise_for_status()
+            total_tokens += _token_count(resp)
+        except Exception:
+            continue
     elapsed = time.perf_counter() - t0
-    return elapsed, _token_count(resp)
+    return elapsed, total_tokens
 
 
 def measure_ttft_multi(cfg: BenchConfig, n_runs: int = 3) -> list[float]:
@@ -226,6 +282,19 @@ def run_extended_benchmark(cfg: BenchConfig, ttft_runs: int = 3) -> BenchResult:
         result.throughput_elapsed_s = elapsed
     except Exception as exc:
         result.errors.append(f"throughput: {exc}")
+
+    try:
+        long_max = 256
+        agg_tps, per_req_tps, long_tokens, long_elapsed = measure_throughput_long(
+            cfg, tokens_per_request=long_max
+        )
+        result.throughput_long_tok_s = agg_tps
+        result.throughput_long_per_request_tok_s = per_req_tps
+        result.throughput_long_tokens = long_tokens
+        result.throughput_long_elapsed_s = long_elapsed
+        result.throughput_long_max_tokens = long_max
+    except Exception as exc:
+        result.errors.append(f"throughput_long: {exc}")
 
     try:
         by_size, p50, p95 = measure_latency_distribution(cfg)

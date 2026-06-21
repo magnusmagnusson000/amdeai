@@ -52,8 +52,16 @@ def main() -> int:
 
     if result.throughput_tok_s is not None:
         print(
-            f"Throughput: {result.throughput_tok_s:.2f} tok/s "
+            f"Throughput (short 5x50): {result.throughput_tok_s:.2f} tok/s "
             f"({result.throughput_tokens} tokens in {result.throughput_elapsed_s:.1f} s)"
+        )
+
+    if result.throughput_long_tok_s is not None:
+        print(
+            f"Throughput (long {result.throughput_long_max_tokens} tok): "
+            f"{result.throughput_long_tok_s:.2f} tok/s aggregate, "
+            f"{result.throughput_long_per_request_tok_s:.2f} tok/s per-request "
+            f"({result.throughput_long_tokens} tokens in {result.throughput_long_elapsed_s:.1f} s)"
         )
 
     if result.latency_by_size:
