@@ -81,10 +81,39 @@ if [[ "$BUILD_TELECOM_AGENT" == "1" ]]; then
   docker save telecom-agent:local | $CTR images import -
 fi
 
-echo "Ensuring Qwen LLM bridge (Workbench catalog Deploy or scripts/10)..."
-bash "$EAI_ROOT/scripts/ensure-qwen-tool-calling.sh" "${QWEN_AIM_NAMESPACE:-demo}" || \
-  echo "WARN: Qwen tool-calling setup skipped (is AIM predictor Running?)"
-QWEN_BRIDGE_WAIT="${QWEN_BRIDGE_WAIT:-300}" bash "$EAI_ROOT/scripts/ensure-qwen-llm-bridge.sh"
+echo "Preflight DiffusionGemma host safety guard..."
+if [[ "${TELECOM_SKIP_PREFLIGHT:-0}" == "1" ]]; then
+  echo "TELECOM_SKIP_PREFLIGHT=1: skipping preflight-diffusiongemma-guard"
+elif kubectl get pods -A -l "aim.eai.amd.com/model=google-diffusiongemma-26b,component=predictor" \
+  -o jsonpath='{.items[?(@.status.containerStatuses[0].ready==true)].metadata.name}' 2>/dev/null | grep -q .; then
+  echo "DiffusionGemma predictor already Ready; using relaxed preflight (MIN_MEM_AVAIL_GIB=${MIN_MEM_AVAIL_GIB:-15})"
+  MIN_MEM_AVAIL_GIB="${MIN_MEM_AVAIL_GIB:-15}" bash "$EAI_ROOT/scripts/preflight-diffusiongemma-guard.sh"
+else
+  bash "$EAI_ROOT/scripts/preflight-diffusiongemma-guard.sh"
+fi
+
+echo "Pausing non-DiffusionGemma AIM inference (single GPU)..."
+PAUSE_INFERENCE_EXCLUDE=diffusiongemma bash "$EAI_ROOT/scripts/pause-aim-inference.sh" "${DG_AIM_NAMESPACE:-demo}"
+
+echo "Ensuring DiffusionGemma LLM bridge + tool calling..."
+bash "$EAI_ROOT/scripts/ensure-diffusiongemma-tool-calling.sh" "${DG_AIM_NAMESPACE:-demo}" || \
+  echo "WARN: DiffusionGemma tool-calling setup skipped (is AIM predictor Running?)"
+DG_BRIDGE_WAIT="${DG_BRIDGE_WAIT:-300}" bash "$EAI_ROOT/scripts/ensure-diffusiongemma-llm-bridge.sh"
+
+MONITOR_LOG_DIR="${MONITOR_LOG_DIR:-${HOME}/amdeai-monitor/dg-telecom}"
+if [[ "${TELECOM_START_MONITOR:-1}" == "1" ]]; then
+  mkdir -p "${MONITOR_LOG_DIR}"
+  if [[ -f "${MONITOR_LOG_DIR}/monitor.pid" ]] && kill -0 "$(cat "${MONITOR_LOG_DIR}/monitor.pid")" 2>/dev/null; then
+    echo "DiffusionGemma runtime monitor already running (pid $(cat "${MONITOR_LOG_DIR}/monitor.pid"))"
+  else
+    echo "Starting DiffusionGemma runtime monitor (log dir: ${MONITOR_LOG_DIR})..."
+    nohup bash "$EAI_ROOT/scripts/monitor-diffusiongemma-runtime.sh" \
+      >> "${MONITOR_LOG_DIR}/monitor.log" 2>&1 &
+    sleep 1
+    echo "  Monitor PID: $(cat "${MONITOR_LOG_DIR}/monitor.pid" 2>/dev/null || echo '?')"
+    echo "  Stop: kill \$(cat ${MONITOR_LOG_DIR}/monitor.pid)"
+  fi
+fi
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/stt-deployment.yaml" -n "$TELECOM_NAMESPACE"
 kubectl apply -f "$EAI_ROOT/manifests/telecom-assistant/tts-deployment.yaml" -n "$TELECOM_NAMESPACE"
 kubectl delete cronjob gemma-warmup -n "$TELECOM_NAMESPACE" --ignore-not-found
@@ -115,7 +144,10 @@ kubectl wait --for=condition=available deployment \
 kubectl get pods,svc -n "$TELECOM_NAMESPACE"
 
 echo ""
-echo "Warming up Qwen3.6-35B-A3B MoE AIM..."
+echo "Warming up DiffusionGemma AIM..."
+LLM_URL="${LLM_URL:-http://diffusiongemma-llm.default.svc.cluster.local}" \
+LLM_MODEL="${LLM_MODEL:-google/diffusiongemma-26B-A4B-it}" \
+LLM_ENABLE_THINKING="${LLM_ENABLE_THINKING:-true}" \
 bash "$EAI_ROOT/scripts/warmup-llm.sh" || echo "WARN: LLM warmup skipped (is AIM predictor Running?)"
 
 echo ""

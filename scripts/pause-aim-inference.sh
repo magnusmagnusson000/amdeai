@@ -12,11 +12,16 @@ set -euo pipefail
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 NS="${1:-demo}"
 TARGET="${2:-}"
+EXCLUDE="${PAUSE_INFERENCE_EXCLUDE:-}"
 
 echo "=== pause-aim-inference (namespace=${NS}) ==="
 
 pause_isvc() {
   local isvc="$1"
+  if [[ -n "$EXCLUDE" ]] && echo "$isvc" | grep -qi "$EXCLUDE"; then
+    echo "  Skipping InferenceService/${isvc} (exclude=${EXCLUDE})"
+    return 0
+  fi
   echo "  Scaling InferenceService/${isvc} to 0 replicas..."
   kubectl patch inferenceservice "$isvc" -n "$NS" --type=json \
     -p='[{"op":"replace","path":"/spec/predictor/minReplicas","value":0},{"op":"replace","path":"/spec/predictor/maxReplicas","value":0}]' \

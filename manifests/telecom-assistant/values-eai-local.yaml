@@ -5,11 +5,12 @@
 # Avoid Docker Hub rate limits when images are pre-imported into RKE2 containerd.
 imagePullPolicy: IfNotPresent
 
-# --- LLM: Qwen3.6-35B-A3B MoE via stable bridge (Workbench catalog Deploy or scripts/11) ---
-# Deploy Qwen from AI Workbench first, then run scripts/09-telecom-assistant.sh.
-# ensure-qwen-llm-bridge.sh discovers the Ready predictor by catalog model label.
+# --- LLM: DiffusionGemma 26B via stable bridge (Workbench catalog Deploy or scripts/12) ---
+# Deploy DiffusionGemma from AI Workbench first, then run scripts/09-telecom-assistant.sh.
+# ensure-diffusiongemma-llm-bridge.sh discovers the Ready predictor by catalog model label.
+# Qwen bridge (qwen-llm) remains available for optional fallback — not used by default.
 llm:
-  existingService: "http://qwen-llm.default.svc.cluster.local"
+  existingService: "http://diffusiongemma-llm.default.svc.cluster.local"
 
 mainServices:
   agent:
@@ -17,9 +18,18 @@ mainServices:
       repository: telecom-agent
       tag: local
     imagePullPolicy: Never
+    # Silero VAD + LiveKit worker pool need >2Gi on gfx1151 with DiffusionGemma LLM.
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "2Gi"
+      limits:
+        cpu: "2"
+        memory: "4Gi"
     env:
-      LLM_MODEL: "Qwen/Qwen3.6-35B-A3B"
+      LLM_MODEL: "google/diffusiongemma-26B-A4B-it"
       LLM_API_KEY: "no-key-required"
+      LLM_ENABLE_THINKING: "true"
   bssgateway:
     image:
       repository: telecom-bssgateway
@@ -35,8 +45,9 @@ mainServices:
       LIVEKIT_URL: "ws://localhost:7880"
       LIVEKIT_PROXY_ENABLED: "1"
       LIVEKIT_UPSTREAM: "http://eai-telecom-livekit:80"
-      LLM_WARMUP_URL: "http://qwen-llm.default.svc.cluster.local"
-      LLM_MODEL: "Qwen/Qwen3.6-35B-A3B"
+      LLM_WARMUP_URL: "http://diffusiongemma-llm.default.svc.cluster.local"
+      LLM_MODEL: "google/diffusiongemma-26B-A4B-it"
+      LLM_ENABLE_THINKING: "true"
 
 # --- Storage: Bloom cluster provides mlstorage (local-path provisioner) ---
 storage:

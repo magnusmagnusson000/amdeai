@@ -31,6 +31,9 @@ data:
       generation-config: vllm
       hf-overrides: '{"diffusion_sampler": "entropy_bound", "diffusion_entropy_bound": 0.15}'
       diffusion-config: '{"canvas_length": 256}'
+      enable-auto-tool-choice: true
+      tool-call-parser: gemma4
+      reasoning-parser: gemma4
     env_vars:
       HSA_OVERRIDE_GFX_VERSION: "11.5.1"
       HSA_ENABLE_SDMA: "0"

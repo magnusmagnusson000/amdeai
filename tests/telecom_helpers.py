@@ -100,9 +100,29 @@ def qwen_llm_base_url() -> str:
     )
 
 
+def diffusiongemma_llm_base_url() -> str:
+    return os.environ.get(
+        "DG_LLM_TEST_URL",
+        "http://127.0.0.1:18081",
+    )
+
+
+DG_LLM_MODEL = os.environ.get("DG_LLM_MODEL", "google/diffusiongemma-26B-A4B-it")
+
+
 def check_qwen_llm_models(timeout: int = 30) -> None:
     r = requests.get(f"{qwen_llm_base_url()}/v1/models", timeout=timeout)
     assert r.status_code == 200
     data = r.json()
     ids = [m.get("id") for m in data.get("data", [])]
     assert any("Qwen" in (mid or "") for mid in ids)
+
+
+def check_diffusiongemma_llm_models(timeout: int = 30) -> None:
+    r = requests.get(f"{diffusiongemma_llm_base_url()}/v1/models", timeout=timeout)
+    assert r.status_code == 200
+    data = r.json()
+    ids = [m.get("id") for m in data.get("data", [])]
+    assert any(
+        "diffusiongemma" in (mid or "").lower() or mid == DG_LLM_MODEL for mid in ids
+    )

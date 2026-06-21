@@ -6,7 +6,9 @@ import asyncio
 import inspect
 import json
 import logging
+import os
 import re
+import threading
 import sys
 import time
 from typing import Any, AsyncIterable
@@ -30,8 +32,8 @@ MAX_TOTAL_CONTEXT_CHARS = 4000
 
 logger = logging.getLogger(__name__)
 
-# Qwen3.6 MoE tends to narrate tool use ("Tool call initiated…") instead of calling tools.
-QWEN_TOOL_CALL_ADDENDUM = """
+# Some models narrate tool use instead of calling tools; keep explicit rules for telecom auth flow.
+TOOL_CALL_ADDENDUM = """
 CRITICAL TOOL-CALLING RULES:
 - NEVER say you will call a tool, "Tool call initiated", or "I will now authenticate". CALL the tool immediately.
 - If the user message is only a passphrase (e.g. "milkyway" or "mars"), call get_user_by_pass_phrase right away.
@@ -40,6 +42,14 @@ CRITICAL TOOL-CALLING RULES:
 """
 
 KNOWN_PASSPHRASES = frozenset({"milkyway", "mars"})
+
+
+def _llm_enable_thinking() -> bool:
+    return os.environ.get("LLM_ENABLE_THINKING", "true").lower() in ("1", "true", "yes")
+
+
+def _llm_chat_template_kwargs() -> dict[str, bool]:
+    return {"enable_thinking": _llm_enable_thinking()}
 
 
 def _normalize_passphrase(text: str) -> str:
@@ -125,7 +135,11 @@ except Exception as e:
     )
 # ===========================================
 
-server = agents.AgentServer()
+server = agents.AgentServer(
+    # Silero VAD + DiffusionGemma warmup exceed the default 10s worker init budget.
+    initialize_process_timeout=120.0,
+    num_idle_processes=1,
+)
 
 
 class QwenASRWrapper(openai.STT):
@@ -148,7 +162,7 @@ class QwenASRWrapper(openai.STT):
 
 class Assistant(agents.Agent):
     def __init__(self) -> None:
-        super().__init__(instructions=SYSTEM_INSTRUCTIONS + QWEN_TOOL_CALL_ADDENDUM)
+        super().__init__(instructions=SYSTEM_INSTRUCTIONS + TOOL_CALL_ADDENDUM)
         self._authenticated_user_id: str | None = None
         self.store = ChromaHybridStore() if settings.chroma_url else None
         logger.info("Storage initialized")
@@ -165,7 +179,7 @@ class Assistant(agents.Agent):
 
         if passphrase and not self._authenticated_user_id:
             # vLLM rejects mid-conversation system/developer roles; explicit phrasing
-            # triggers reliable tool_calls (tested with Qwen3.6-35B-A3B MoE).
+            # triggers reliable tool_calls (validated with Qwen MoE and DiffusionGemma).
             new_message.content = [f"My passphrase is {passphrase}"]
             logger.info(f"Passphrase detected ({passphrase!r}); normalized user message for tool call")
         elif self._authenticated_user_id:
@@ -482,7 +496,7 @@ def _warmup_llm() -> None:
                     "model": settings.llm_model,
                     "messages": [{"role": "user", "content": "hi"}],
                     "max_tokens": 1,
-                    "chat_template_kwargs": {"enable_thinking": False},
+                    "chat_template_kwargs": _llm_chat_template_kwargs(),
                 },
                 headers={"Authorization": f"Bearer {settings.llm_api_key or 'no-key-required'}"},
             )
@@ -494,7 +508,8 @@ def _warmup_llm() -> None:
 
 def prewarm(proc: agents.JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
-    _warmup_llm()
+    # DiffusionGemma warmup can take 15–30s; do not block LiveKit worker init.
+    threading.Thread(target=_warmup_llm, daemon=True).start()
 
 
 server.setup_fnc = prewarm
@@ -514,7 +529,7 @@ async def my_agent(ctx: agents.JobContext):
             model=settings.llm_model,
             base_url=settings.llm_base_url,
             api_key=settings.llm_api_key,
-            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+            extra_body={"chat_template_kwargs": _llm_chat_template_kwargs()},
             client=openai_sdk.AsyncClient(
                 max_retries=2,
                 base_url=settings.llm_base_url,

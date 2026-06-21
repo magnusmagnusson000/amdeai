@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Warm up Qwen3.6 AIM (vLLM / KServe predictor).
+# Warm up telecom LLM (vLLM / KServe predictor via stable bridge Service).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
-LLM_BASE="${LLM_URL:-http://qwen-llm.default.svc.cluster.local}"
-LLM_MODEL="${LLM_MODEL:-Qwen/Qwen3.6-35B-A3B}"
+LLM_BASE="${LLM_URL:-http://diffusiongemma-llm.default.svc.cluster.local}"
+LLM_MODEL="${LLM_MODEL:-google/diffusiongemma-26B-A4B-it}"
+LLM_ENABLE_THINKING="${LLM_ENABLE_THINKING:-true}"
 TIMEOUT="${LLM_WARMUP_TIMEOUT:-180}"
 
 base="${LLM_BASE%/}"
 base="${base%/v1}"
 url="${base}/v1/chat/completions"
 models_url="${base}/v1/models"
+
+warmup_payload="{\"model\":\"${LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1,\"chat_template_kwargs\":{\"enable_thinking\":${LLM_ENABLE_THINKING}}}"
 
 echo "Warming up LLM at ${url} (model=${LLM_MODEL}, timeout=${TIMEOUT}s)..."
 
@@ -23,7 +26,7 @@ elif command -v kubectl >/dev/null 2>&1; then
     -n "${LLM_WARMUP_NAMESPACE:-telecom-assistant}" -- \
     sh -c "curl -sf '${models_url}' && curl -sf --max-time ${TIMEOUT} -X POST '${url}' \
       -H 'Content-Type: application/json' -H 'Authorization: Bearer no-key-required' \
-      -d '{\"model\":\"${LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}'"
+      -d '${warmup_payload}'"
   echo "LLM warmup complete."
   exit 0
 else
@@ -34,7 +37,7 @@ fi
 curl -sf --max-time "$TIMEOUT" -X POST "$url" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer no-key-required" \
-  -d "{\"model\":\"${LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}" \
+  -d "${warmup_payload}" \
   >/dev/null
 
 echo "LLM warmup complete."

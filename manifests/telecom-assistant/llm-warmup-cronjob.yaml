@@ -1,4 +1,4 @@
-# Keeps Qwen3.6-35B-A3B MoE AIM hot between page loads (vLLM first-token latency).
+# Keeps DiffusionGemma AIM hot between page loads (vLLM first-token latency).
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -24,9 +24,11 @@ spec:
               image: curlimages/curl:8.18.0
               env:
                 - name: LLM_URL
-                  value: "http://qwen-llm.default.svc.cluster.local/v1/chat/completions"
+                  value: "http://diffusiongemma-llm.default.svc.cluster.local/v1/chat/completions"
                 - name: LLM_MODEL
-                  value: "Qwen/Qwen3.6-35B-A3B"
+                  value: "google/diffusiongemma-26B-A4B-it"
+                - name: LLM_ENABLE_THINKING
+                  value: "true"
               command:
                 - sh
                 - -c
@@ -35,4 +37,4 @@ spec:
                   curl -sf --max-time 120 -X POST "${LLM_URL}" \
                     -H "Content-Type: application/json" \
                     -H "Authorization: Bearer no-key-required" \
-                    -d "{\"model\":\"${LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+                    -d "{\"model\":\"${LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1,\"chat_template_kwargs\":{\"enable_thinking\":${LLM_ENABLE_THINKING:-true}}}"

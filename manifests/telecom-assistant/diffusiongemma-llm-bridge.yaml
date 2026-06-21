@@ -1,0 +1,17 @@
+# Stable in-cluster OpenAI endpoint for Telecom Assistant → DiffusionGemma AIM.
+# No selector: Endpoints are populated by scripts/ensure-diffusiongemma-llm-bridge.sh from
+# whichever AIMService predictor is Ready (Workbench catalog Deploy or scripts/12).
+# Agent LLM_BASE_URL: http://diffusiongemma-llm.default.svc.cluster.local/v1
+apiVersion: v1
+kind: Service
+metadata:
+  name: diffusiongemma-llm
+  namespace: default
+  labels:
+    app.kubernetes.io/component: telecom-llm-bridge
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000

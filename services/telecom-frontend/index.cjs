@@ -20,9 +20,15 @@ const {
   LIVEKIT_PROXY_ENABLED = "1",
   LIVEKIT_PROXY_PREFIX = "/livekit",
   PORT = "3000",
-  LLM_WARMUP_URL = "http://qwen-llm.default.svc.cluster.local",
-  LLM_MODEL = "Qwen/Qwen3.6-35B-A3B",
+  LLM_WARMUP_URL = "http://diffusiongemma-llm.default.svc.cluster.local",
+  LLM_MODEL = "google/diffusiongemma-26B-A4B-it",
+  LLM_ENABLE_THINKING = "true",
 } = process.env;
+
+function llmEnableThinking() {
+  const v = (process.env.LLM_ENABLE_THINKING ?? "true").toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
 
 const proxy = httpProxy.createProxyServer({ ws: true, changeOrigin: true });
 proxy.on("error", (err, _req, res) => {
@@ -60,7 +66,7 @@ function warmupLlm() {
       model: LLM_MODEL,
       messages: [{ role: "user", content: "hi" }],
       max_tokens: 1,
-      chat_template_kwargs: { enable_thinking: false },
+      chat_template_kwargs: { enable_thinking: llmEnableThinking() },
     }),
   })
     .then((r) => {
