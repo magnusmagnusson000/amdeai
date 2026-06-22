@@ -1,0 +1,37 @@
+# AIMClusterServiceTemplate for microsoft/phi-4 (14B) on gfx1151 / R9700.
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterServiceTemplate
+metadata:
+  name: phi-4-14b-r9700-gfx1151-latency
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+    aim.eai.amd.com/cluster-model.name: microsoft-phi-4-14b
+spec:
+  modelName: microsoft-phi-4-14b
+  aimId: microsoft/phi-4-14b
+  modelId: microsoft/phi-4
+  metric: latency
+  precision: fp16
+  hardware:
+    gpu:
+      model: R9700
+      requests: 1
+  env:
+    - name: AIM_ID
+      value: microsoft/phi-4-14b
+    - name: AIM_GPU_MODEL
+      value: R9700
+    - name: AIM_GPU_COUNT
+      value: "1"
+    - name: HSA_OVERRIDE_GFX_VERSION
+      value: "11.5.1"
+    - name: HSA_ENABLE_SDMA
+      value: "0"
+    - name: MIOPEN_FIND_ENFORCE
+      value: "1"
+    - name: PYTORCH_ROCM_ARCH
+      value: gfx1151
+    - name: TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL
+      value: "1"
+  profileId: phi-4-14b-r9700-gfx1151-latency

@@ -1,0 +1,21 @@
+# Optional Helm overlay: point telecom assistant at Phi-4 14B instead of DiffusionGemma.
+# Apply only after tool-calling spike passes (scripts/ensure-phi-4-tool-calling.sh).
+#
+# Usage:
+#   helm upgrade ... -f manifests/telecom-assistant/values-eai-local.yaml \
+#     -f manifests/telecom-assistant/values-eai-local-phi4.yaml
+
+llm:
+  existingService: "http://phi-4-llm.default.svc.cluster.local"
+
+mainServices:
+  agent:
+    env:
+      LLM_MODEL: "microsoft/phi-4"
+      LLM_API_KEY: "no-key-required"
+      LLM_ENABLE_THINKING: "false"
+  frontend:
+    env:
+      LLM_WARMUP_URL: "http://phi-4-llm.default.svc.cluster.local"
+      LLM_MODEL: "microsoft/phi-4"
+      LLM_ENABLE_THINKING: "false"

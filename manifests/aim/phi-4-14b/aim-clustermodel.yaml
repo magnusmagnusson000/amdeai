@@ -1,0 +1,36 @@
+# AIM catalog entry for microsoft/phi-4 (14B) — manually authored.
+apiVersion: aim.eai.amd.com/v1alpha1
+kind: AIMClusterModel
+metadata:
+  name: microsoft-phi-4-14b
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+  annotations:
+    aim.eai.amd.com/source-registry: ${REGISTRY_HOST}
+    aim.eai.amd.com/source-repository: aim-gfx1151-phi-4-14b
+    aim.eai.amd.com/source-tag: "0.11-therock"
+spec:
+  image: ${REGISTRY_HOST}/aim-gfx1151-phi-4-14b:0.11-therock
+  discovery:
+    createServiceTemplates: false
+  imageMetadata:
+    baseImageRef: ${REGISTRY_HOST}/aim-gfx1151-phi-4-14b:0.11-therock
+    model:
+      canonicalName: microsoft/phi-4
+      hfTokenRequired: false
+      tags:
+        - text-generation
+        - chat
+        - instruction
+      descriptionFull: >
+        Phi-4 (14B) dense model by Microsoft. Validated on gfx1151 (Strix Halo / R9700)
+        via vLLM with ROCm HIP. No HuggingFace token required.
+        Runtime config: phi-4-14b-r9700-gfx1151-latency (AIMClusterProfile v1alpha2).
+      recommendedDeployments:
+        - gpuModel: R9700
+          gpuCount: 1
+          precision: fp16
+          metric: latency
+          profileId: phi-4-14b-r9700-gfx1151-latency
+          description: gfx1151 latency profile — AITER disabled, ROCM_ATTN backend, fp16

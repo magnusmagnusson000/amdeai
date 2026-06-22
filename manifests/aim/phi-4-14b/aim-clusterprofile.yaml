@@ -1,0 +1,71 @@
+# AIMClusterProfile (v1alpha2) for microsoft/phi-4 (14B) on gfx1151 / R9700.
+apiVersion: aim.eai.amd.com/v1alpha2
+kind: AIMClusterProfile
+metadata:
+  name: phi-4-14b-r9700-gfx1151-latency
+  labels:
+    aim.eai.amd.com/origin: manual
+    aim.eai.amd.com/platform: gfx1151
+spec:
+  aimId: microsoft/phi-4-14b
+  modelId: microsoft/phi-4
+  profileId: phi-4-14b-r9700-gfx1151-latency
+  engine: vllm
+  metric: latency
+  precision: fp16
+  type: general
+  primary: true
+
+  acceleratorModel: R9700
+  acceleratorType: gpu
+  acceleratorCount: 1
+  resources:
+    requests:
+      cpu: "4"
+      memory: 48Gi
+
+  image: ${REGISTRY_HOST}/aim-gfx1151-phi-4-14b:0.11-therock
+
+  engineArgs:
+    tensor-parallel-size: "1"
+    gpu-memory-utilization: "0.38"
+    max-model-len: "8192"
+    max-num-seqs: "32"
+    attention-backend: ROCM_ATTN
+    enforce-eager: true
+    enable-auto-tool-choice: true
+    tool-call-parser: phi4_mini_json
+
+  engineEnv:
+    HSA_OVERRIDE_GFX_VERSION: "11.5.1"
+    HSA_ENABLE_SDMA: "0"
+    MIOPEN_FIND_ENFORCE: "1"
+    PYTORCH_ROCM_ARCH: gfx1151
+    GPU_ARCHS: gfx1151
+    TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL: "1"
+    VLLM_ROCM_USE_AITER: "0"
+    VLLM_ROCM_USE_AITER_MHA: "0"
+    VLLM_ROCM_USE_AITER_RMSNORM: "0"
+    VLLM_ROCM_USE_AITER_LINEAR: "0"
+    VLLM_ROCM_USE_AITER_MOE: "0"
+    VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "0"
+    VLLM_DO_NOT_TRACK: "1"
+    VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS: "900"
+
+  containerEnv:
+    - name: AIM_GPU_MODEL
+      value: R9700
+    - name: AIM_GPU_COUNT
+      value: "1"
+    - name: HSA_OVERRIDE_GFX_VERSION
+      value: "11.5.1"
+    - name: HSA_ENABLE_SDMA
+      value: "0"
+    - name: PYTORCH_ROCM_ARCH
+      value: gfx1151
+    - name: VLLM_USE_V1
+      value: "0"
+
+  modelSources:
+    - modelId: microsoft/phi-4
+      sourceUri: hf://microsoft/phi-4

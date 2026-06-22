@@ -12,6 +12,7 @@ import requests
 from telecom_helpers import (
     DG_LLM_MODEL,
     NAMESPACE,
+    PHI4_LLM_MODEL,
     RELEASE,
     agent_env,
     deployment_replicas,
@@ -228,3 +229,67 @@ def test_frontend_connection_api():
 def test_agent_running():
     wait_pod("aimsb-telecom-assistant-eai-telecom-agent", timeout=600)
     assert pod_ready("aimsb-telecom-assistant-eai-telecom-agent")
+
+
+@pytest.mark.skipif(
+    os.environ.get("TELECOM_LLM", "") != "phi4",
+    reason="Set TELECOM_LLM=phi4",
+)
+def test_agent_uses_phi4_llm_config():
+    wait_pod("aimsb-telecom-assistant-eai-telecom-agent", timeout=600)
+    llm_model = agent_env("LLM_MODEL")
+    llm_url = agent_env("LLM_BASE_URL")
+    assert llm_model == PHI4_LLM_MODEL
+    assert "phi-4-llm" in (llm_url or "")
+
+
+@pytest.mark.skipif(
+    os.environ.get("TELECOM_LLM", "") != "phi4",
+    reason="Set TELECOM_LLM=phi4",
+)
+def test_phi4_llm_bridge():
+    import subprocess
+
+    out = subprocess.check_output(
+        [
+            "kubectl", "run", "phi4-bridge-test", "--rm", "-i", "--restart=Never",
+            "--image=curlimages/curl:8.18.0", "-n", NAMESPACE, "--",
+            "sh", "-c",
+            "curl -sf http://phi-4-llm.default.svc.cluster.local/v1/models && "
+            "curl -sf --max-time 180 -X POST http://phi-4-llm.default.svc.cluster.local/v1/chat/completions "
+            "-H 'Content-Type: application/json' -H 'Authorization: Bearer no-key-required' "
+            f"-d '{{\"model\":\"{PHI4_LLM_MODEL}\",\"messages\":[{{\"role\":\"user\",\"content\":\"Say hi in one word.\"}}],"
+            "\"max_tokens\":32}'",
+        ],
+        text=True,
+        stderr=subprocess.STDOUT,
+        timeout=240,
+    )
+    assert "phi" in out.lower() or PHI4_LLM_MODEL in out
+    assert "choices" in out
+
+
+@pytest.mark.skipif(
+    not os.environ.get("PHI4_TOOL_CALLING", ""),
+    reason="Set PHI4_TOOL_CALLING=1 after tool-calling spike",
+)
+def test_phi4_tool_calling_spike():
+    import subprocess
+
+    out = subprocess.check_output(
+        [
+            "kubectl", "run", "phi4-telecom-tool-test", "--rm", "-i", "--restart=Never",
+            "--image=curlimages/curl:8.18.0", "-n", NAMESPACE, "--",
+            "sh", "-c",
+            f"curl -sf --max-time 180 -X POST http://phi-4-llm.default.svc.cluster.local/v1/chat/completions "
+            "-H 'Content-Type: application/json' "
+            f"-d '{{\"model\":\"{PHI4_LLM_MODEL}\",\"messages\":[{{\"role\":\"user\",\"content\":\"What is 2+2?\"}}],"
+            "\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"calc\",\"description\":\"Calculator\","
+            "\"parameters\":{\"type\":\"object\",\"properties\":{\"expr\":{\"type\":\"string\"}}}}}],"
+            "\"max_tokens\":30,\"temperature\":0}'",
+        ],
+        text=True,
+        stderr=subprocess.STDOUT,
+        timeout=240,
+    )
+    assert "finish_reason" in out

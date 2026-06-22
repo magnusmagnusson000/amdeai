@@ -284,7 +284,8 @@ docs/<MODEL>_AIM_GFX1151_POST_INSTALL.md  # model-specific notes (optional)
 ## Related docs
 
 - [QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md](QWEN3_6_27B_AIM_GFX1151_POST_INSTALL.md) — full Qwen walkthrough, image build, smoke tests
-- [GFX1151_CUSTOM_AIM_DEPLOYMENT_GUIDE.md](GFX1151_CUSTOM_AIM_DEPLOYMENT_GUIDE.md) — hybrid / Phi-4 path
+- [PHI4_14B_AIM_BLOOM_POST_INSTALL.md](PHI4_14B_AIM_BLOOM_POST_INSTALL.md) — Phi-4 14B managed catalog (pause DiffusionGemma first)
+- [GFX1151_CUSTOM_AIM_DEPLOYMENT_GUIDE.md](GFX1151_CUSTOM_AIM_DEPLOYMENT_GUIDE.md) — hybrid / Phi-4-mini path
 - [BLOOM_GFX1151_INSTALL.md](BLOOM_GFX1151_INSTALL.md) — cluster prerequisites, E2E commands
 - [TELECOM_ASSISTANT_SPEECH_TESTING.md](TELECOM_ASSISTANT_SPEECH_TESTING.md) — after LLM is Running
 - [AIM_ENGINE_DEEP_DIVE.md](AIM_ENGINE_DEEP_DIVE.md) — CRD reference

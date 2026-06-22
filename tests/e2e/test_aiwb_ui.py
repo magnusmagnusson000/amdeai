@@ -1033,3 +1033,258 @@ def test_diffusiongemma_chat(page: Page, domain: str, devuser_password: str | No
     expect(page.locator("body")).not_to_contain_text(
         re.compile(r"500|502|connection refused|failed to fetch", re.I)
     )
+
+
+# ---------------------------------------------------------------------------
+# Phi-4 14B tests
+# ---------------------------------------------------------------------------
+
+_SKIP_PHI4 = pytest.mark.skipif(
+    not os.environ.get("E2E_PHI4", ""),
+    reason="Set E2E_PHI4=1",
+)
+_SKIP_PHI4_DEPLOY = pytest.mark.skipif(
+    not os.environ.get("E2E_PHI4_DEPLOY", ""),
+    reason="Set E2E_PHI4_DEPLOY=1 for one-time full deploy (destructive)",
+)
+
+_PHI4_MODEL_NAME = "microsoft-phi-4-14b"
+_PHI4_DEPLOY_MIN_GB = 45
+_PHI4_DEPLOY_TIMEOUT_S = 5400
+_PHI4_CHAT_TIMEOUT_S = 180
+
+
+def _click_phi4_deploy_button(page: Page) -> None:
+    phi_text = page.get_by_text(_PHI4_MODEL_NAME, exact=True).first
+    phi_text.wait_for(state="visible", timeout=30000)
+    phi_text.scroll_into_view_if_needed()
+
+    card = page.locator("div.flex-col.relative.overflow-hidden").filter(
+        has_text=_PHI4_MODEL_NAME
+    ).first
+    deploy = card.get_by_role("button", name="Deploy").first
+    deploy.wait_for(state="visible", timeout=10000)
+    deploy.click()
+
+
+def _phi4_aimservice_names(namespace: str = "demo") -> list[str]:
+    names: list[str] = []
+    for svc in _existing_aimservices(namespace):
+        name = svc.split("/")[-1]
+        model = _kubectl(
+            ["get", "aimservice", name, "-n", namespace, "-o", "jsonpath={.spec.model.name}"]
+        )
+        if model == _PHI4_MODEL_NAME:
+            names.append(name)
+    return names
+
+
+def _teardown_phi4_deployments(namespace: str = "demo") -> None:
+    for name in _phi4_aimservice_names(namespace):
+        _kubectl_run(
+            ["delete", "aimservice", name, "-n", namespace, "--ignore-not-found",
+             "--wait=true", "--timeout=120s"],
+            timeout=150,
+        )
+
+    for tc in _kubectl(["get", "aimtemplatecache", "-n", namespace, "-o", "name"]).splitlines():
+        if tc and ("phi-4" in tc.lower() or "phi4" in tc.lower()):
+            _kubectl_run(["delete", tc, "-n", namespace, "--ignore-not-found"], timeout=60)
+
+    for art in _kubectl(["get", "aimartifact", "-n", namespace, "-o", "name"]).splitlines():
+        if art and ("phi-4" in art.lower() or "phi4" in art.lower()):
+            _kubectl_run(["delete", art, "-n", namespace, "--ignore-not-found"], timeout=60)
+
+    isvcs = _kubectl(["get", "inferenceservice", "-n", namespace, "-o", "name"])
+    for isvc in isvcs.splitlines():
+        if isvc and ("phi-4" in isvc.lower() or "phi4" in isvc.lower()):
+            _kubectl_run(
+                ["delete", isvc, "-n", namespace, "--ignore-not-found",
+                 "--force", "--grace-period=0"],
+                timeout=60,
+            )
+
+
+def _ensure_phi4_chattable() -> None:
+    script = _EAI_ROOT / "scripts" / "ensure-phi-4-14b-chattable.sh"
+    if script.is_file():
+        subprocess.run(["bash", str(script)], check=False, timeout=90)
+
+
+def _apply_phi4_post_deploy_fixes(namespace: str = "demo") -> None:
+    profile = _EAI_ROOT / "scripts" / "ensure-phi-4-14b-profile-mount.sh"
+    gateway = _EAI_ROOT / "scripts" / "fix-aim-httproute-gateway.sh"
+    chattable = _EAI_ROOT / "scripts" / "ensure-phi-4-14b-chattable.sh"
+    if profile.is_file():
+        subprocess.run(["bash", str(profile), namespace], check=False, timeout=180)
+    if gateway.is_file():
+        subprocess.run(["bash", str(gateway), namespace], check=False, timeout=120)
+    if chattable.is_file():
+        subprocess.run(["bash", str(chattable)], check=False, timeout=90)
+
+
+def _select_phi4_chat_model(page: Page) -> None:
+    select_btn = page.locator("button").filter(has_text=re.compile(r"^Select model", re.I)).last
+    select_btn.wait_for(state="visible", timeout=10000)
+    select_btn.click()
+    option = page.locator('[role="option"]').filter(
+        has_text=re.compile(r"phi-4|Phi-4|microsoft-phi", re.I)
+    )
+    expect(option.first).to_be_visible(timeout=30000)
+    option.first.click()
+    expect(page.locator('[data-testid="chat-input"]')).to_be_enabled(timeout=15000)
+
+
+@_SKIP_PHI4
+@pytest.mark.order(30)
+def test_aim_catalog_shows_phi4(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+    expect(page.locator(f"text={_PHI4_MODEL_NAME}")).to_be_visible(timeout=30000)
+
+    phi_text = page.locator(f"text={_PHI4_MODEL_NAME}").first
+    phi_bb = phi_text.bounding_box()
+    all_deploy = page.get_by_role("button", name="Deploy").all()
+    closest = min(
+        (b for b in all_deploy if b.bounding_box()),
+        key=lambda b: abs(b.bounding_box()["y"] - phi_bb["y"]),
+    )
+    expect(closest).to_be_enabled()
+
+
+@_SKIP_PHI4
+@pytest.mark.order(31)
+def test_deploy_phi4_button(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+
+    before = _existing_aimservices()
+    _click_phi4_deploy_button(page)
+    dialog = page.locator('[role="dialog"]')
+    expect(page.locator("text=Deploy AIM")).to_be_visible(timeout=10000)
+    expect(dialog).to_contain_text(re.compile(r"phi-4|Phi-4|14b|14B", re.I), timeout=5000)
+
+    cancel_btn = page.get_by_role("button", name=re.compile(r"^Cancel$", re.I))
+    if cancel_btn.count() > 0:
+        cancel_btn.first.click()
+    else:
+        page.keyboard.press("Escape")
+
+    expect(page.locator("text=Deploy AIM")).not_to_be_visible(timeout=5000)
+    _cleanup_new_aimservices(before)
+
+
+@_SKIP_PHI4_DEPLOY
+def test_phi4_deploy_confirm_full(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+
+    pause_script = _EAI_ROOT / "scripts" / "ensure-diffusiongemma-paused.sh"
+    if pause_script.is_file():
+        subprocess.run(["bash", str(pause_script)], check=False, timeout=150)
+
+    free_gb = _free_disk_gb()
+    if free_gb < _PHI4_DEPLOY_MIN_GB:
+        pytest.fail(
+            f"Need >= {_PHI4_DEPLOY_MIN_GB} GiB free on / (have {free_gb} GiB)."
+        )
+
+    _teardown_phi4_deployments()
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+
+    _click_phi4_deploy_button(page)
+    dialog = page.locator('[role="dialog"]')
+    expect(page.locator("text=Deploy AIM")).to_be_visible(timeout=10000)
+
+    confirm = dialog.get_by_role(
+        "button", name=re.compile(r"^(Deploy|Confirm|Deploy AIM)$", re.I)
+    )
+    if confirm.count() == 0:
+        confirm = page.get_by_role("button", name=re.compile(r"^Deploy AIM$", re.I))
+    assert confirm.count() > 0, "No confirm button in Deploy AIM dialog"
+    confirm.first.click()
+
+    expect(page.locator("text=Deploy AIM")).not_to_be_visible(timeout=30000)
+
+    appear_deadline = time.time() + 300
+    while time.time() < appear_deadline and not _phi4_aimservice_names():
+        time.sleep(10)
+    if not _phi4_aimservice_names():
+        pytest.fail("No Phi-4 AIMService created within 5 min after Deploy confirm")
+
+    post_fixes_applied = False
+    running = False
+    wait_deadline = time.time() + _PHI4_DEPLOY_TIMEOUT_S
+    while time.time() < wait_deadline:
+        for name in _phi4_aimservice_names():
+            last_status = _kubectl(
+                ["get", "aimservice", name, "-n", "demo", "-o", "jsonpath={.status.status}"]
+            )
+            print(f"  aimservice/{name} status={last_status!r}", flush=True)
+            if last_status == "Running":
+                running = True
+                break
+        if not running:
+            if not post_fixes_applied and _kubectl(
+                ["get", "inferenceservice", "-n", "demo", "-o", "name"]
+            ):
+                _apply_phi4_post_deploy_fixes()
+                post_fixes_applied = True
+            time.sleep(60)
+            continue
+        _apply_phi4_post_deploy_fixes()
+        break
+    else:
+        pytest.fail(f"Phi-4 AIMService did not reach Running within {_PHI4_DEPLOY_TIMEOUT_S}s")
+
+
+@_SKIP_PHI4
+@pytest.mark.order(32)
+def test_phi4_card_status(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    if not _phi4_aimservice_names():
+        pytest.skip("No Phi-4 AIMService — deploy from catalog first")
+
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CATALOG_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=15000)
+    expect(page.locator(f"text={_PHI4_MODEL_NAME}")).to_be_visible(timeout=30000)
+
+
+@_SKIP_PHI4
+@pytest.mark.order(33)
+def test_phi4_chat(page: Page, domain: str, devuser_password: str | None):
+    if not devuser_password:
+        pytest.skip("DevUser credentials not ready")
+    if not _phi4_aimservice_names():
+        pytest.skip("No Phi-4 AIMService — deploy from catalog first")
+
+    _apply_phi4_post_deploy_fixes()
+    _keycloak_login(page, domain, f"devuser@{domain}", devuser_password)
+    page.goto(f"https://aiwbui.{domain}{_CHAT_URL_PATH}")
+    page.wait_for_load_state("networkidle", timeout=30000)
+
+    chattable = _chattable_response(page, domain)
+    if not chattable.get("aimServices"):
+        pytest.fail(
+            "chattable API returned no AIM services — run: bash scripts/ensure-phi-4-14b-chattable.sh"
+        )
+
+    _select_phi4_chat_model(page)
+    chat_input = page.locator('[data-testid="chat-input"]')
+    chat_input.fill("Reply with exactly: pong")
+    chat_input.press("Enter")
+
+    expect(page.locator("body")).to_contain_text("pong", timeout=_PHI4_CHAT_TIMEOUT_S * 1000)
+    expect(page.locator("body")).not_to_contain_text(
+        re.compile(r"500|502|connection refused|failed to fetch", re.I)
+    )

@@ -1,0 +1,14 @@
+# Stable in-cluster OpenAI endpoint for Telecom Assistant → Phi-4 14B AIM.
+apiVersion: v1
+kind: Service
+metadata:
+  name: phi-4-llm
+  namespace: default
+  labels:
+    app.kubernetes.io/component: telecom-llm-bridge
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000

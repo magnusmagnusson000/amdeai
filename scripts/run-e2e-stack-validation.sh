@@ -26,6 +26,11 @@ fi
 DOMAIN_VAL="$(domain)"
 echo "Domain: ${DOMAIN_VAL}"
 
+if [[ "${E2E_PHI4:-0}" == "1" ]]; then
+  echo "E2E_PHI4=1 — ensuring DiffusionGemma inference is paused before Phi-4 tests..."
+  bash "$SCRIPT_DIR/ensure-diffusiongemma-paused.sh" demo default || true
+fi
+
 # Patch Keycloak memory before JVM cold-start can OOM its 2Gi cgroup (gfx1151 boot freeze).
 bash "$SCRIPT_DIR/ensure-stack-startup.sh" || {
   echo "WARN: ensure-stack-startup failed — continuing (UIs may be unhealthy)."
@@ -50,6 +55,17 @@ if [[ "${SKIP_QWEN_CATALOG_PREP:-0}" != "1" ]]; then
     CATALOG_ONLY=1 bash "$SCRIPT_DIR/10-qwen3-6-27b.sh"
   else
     echo "Qwen catalog template Ready."
+  fi
+fi
+
+if [[ "${SKIP_PHI4_CATALOG_PREP:-0}" != "1" ]] && [[ "${E2E_PHI4:-0}" == "1" ]]; then
+  PHI_TEMPLATE="phi-4-14b-r9700-gfx1151-latency"
+  PHI_STATUS=$(kubectl get aimclusterservicetemplate "$PHI_TEMPLATE" \
+    -o jsonpath='{.status.status}' 2>/dev/null || echo "")
+  if [[ "$PHI_STATUS" != "Ready" ]]; then
+    echo "Phi-4 catalog not Ready — pausing DiffusionGemma, then CATALOG_ONLY=1 scripts/13-phi-4-14b.sh"
+    bash "$SCRIPT_DIR/ensure-diffusiongemma-paused.sh" demo default || true
+    CATALOG_ONLY=1 bash "$SCRIPT_DIR/13-phi-4-14b.sh"
   fi
 fi
 
@@ -90,3 +106,8 @@ echo "DiffusionGemma catalog + Deploy dialog (non-destructive):"
 echo "  E2E_STACK=1 E2E_AIWB=1 E2E_DIFFUSIONGEMMA=1 pytest tests/e2e/test_aiwb_ui.py -k diffusiongemma -v"
 echo "One-time DiffusionGemma full deploy:"
 echo "  E2E_DIFFUSIONGEMMA_DEPLOY=1 pytest tests/e2e/test_aiwb_ui.py::test_diffusiongemma_deploy_confirm_full -v -s"
+echo ""
+echo "Phi-4 14B catalog + Deploy dialog (non-destructive):"
+echo "  E2E_STACK=1 E2E_AIWB=1 E2E_PHI4=1 pytest tests/e2e/test_aiwb_ui.py -k phi4 -v"
+echo "One-time Phi-4 full deploy (~28 GiB download; pauses DiffusionGemma first):"
+echo "  E2E_PHI4_DEPLOY=1 pytest tests/e2e/test_aiwb_ui.py::test_phi4_deploy_confirm_full -v -s"

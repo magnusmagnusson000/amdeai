@@ -1,0 +1,17 @@
+# AIMService (v1alpha2) — managed deploy trigger for microsoft/phi-4 on gfx1151.
+apiVersion: aim.eai.amd.com/v1alpha2
+kind: AIMService
+metadata:
+  name: phi-4-14b
+  namespace: demo
+spec:
+  model:
+    name: microsoft-phi-4-14b
+  template:
+    name: phi-4-14b-r9700-gfx1151-latency
+  caching:
+    mode: Shared
+  replicas: 1
+  env:
+    - name: AIM_ID
+      value: microsoft/phi-4-14b
