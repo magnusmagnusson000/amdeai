@@ -13,6 +13,28 @@ source "$SCRIPT_DIR/lib/staged-startup.sh"
 
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 
+pause_cluster_kill_orphans() {
+  # rke2/k3s stop often leaves containerd-shim + workload PIDs in the unit cgroup
+  # (journal: "Unit process (containerd-shim) remains running after unit stopped").
+  local units=(rke2-server.service k3s.service)
+  local unit cgroup pids remaining count
+  for unit in "${units[@]}"; do
+    cgroup="/system.slice/${unit}"
+    pids=$(sudo systemd-cgls "$cgroup" 2>/dev/null \
+      | grep -Eo '^[[:space:]]*[├└]─[[:space:]]+[0-9]+' \
+      | grep -Eo '[0-9]+' || true)
+    [[ -z "$pids" ]] && continue
+    count=$(echo "$pids" | wc -w)
+    echo "Killing ${count} orphaned process(es) in ${cgroup}..."
+    echo "$pids" | xargs -r sudo kill -TERM 2>/dev/null || true
+    sleep 5
+    remaining=$(sudo systemd-cgls "$cgroup" 2>/dev/null \
+      | grep -Eo '^[[:space:]]*[├└]─[[:space:]]+[0-9]+' \
+      | grep -Eo '[0-9]+' || true)
+    [[ -n "$remaining" ]] && echo "$remaining" | xargs -r sudo kill -KILL 2>/dev/null || true
+  done
+}
+
 echo "=== pause-cluster ==="
 
 if kubectl get nodes &>/dev/null; then
@@ -28,6 +50,7 @@ if [[ "${1:-}" == "--stop" ]]; then
   echo "Stopping rke2-server..."
   sudo systemctl stop rke2-server 2>/dev/null || sudo systemctl stop k3s 2>/dev/null || true
   echo "RKE2/k3s stopped."
+  pause_cluster_kill_orphans
 fi
 
 free -h | head -2

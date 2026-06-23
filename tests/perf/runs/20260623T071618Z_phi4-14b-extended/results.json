@@ -1,0 +1,45 @@
+{
+  "model": "microsoft/phi-4",
+  "endpoint": "http://127.0.0.1:18083",
+  "warmup_elapsed_s": 55.28819588800252,
+  "warmup_tokens": 430,
+  "ttft_s": 0.31862017200910486,
+  "ttft_runs_s": [
+    0.2202899459953187,
+    0.31963802299287636,
+    0.31862017200910486
+  ],
+  "ttft_median_s": 0.31862017200910486,
+  "ttft_mean_s": 0.28618271366576664,
+  "throughput_tok_s": 7.802326925311682,
+  "throughput_tokens": 250,
+  "throughput_elapsed_s": 32.041723243994056,
+  "throughput_long_tok_s": 7.845196800450444,
+  "throughput_long_per_request_tok_s": 7.845214052119883,
+  "throughput_long_tokens": 768,
+  "throughput_long_elapsed_s": 97.89429373599705,
+  "throughput_long_max_tokens": 256,
+  "latency_p50_s": 5.956361296994146,
+  "latency_p95_s": 10.660620670525532,
+  "latency_by_size": {
+    "short": {
+      "p50_s": 2.1016941519919783,
+      "p95_s": 2.1229940398130567,
+      "avg_s": 2.1011012759942482
+    },
+    "medium": {
+      "p50_s": 5.956361296994146,
+      "p95_s": 5.9754168043815294,
+      "avg_s": 5.952081958656588
+    },
+    "long": {
+      "p50_s": 10.42327793998993,
+      "p95_s": 10.708089216632652,
+      "avg_s": 10.466679486334519
+    }
+  },
+  "concurrent_ok": 4,
+  "concurrent_total": 4,
+  "concurrent_wall_s": 5.572234180988744,
+  "errors": []
+}

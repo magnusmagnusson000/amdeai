@@ -236,6 +236,8 @@ bash scripts/pause-cluster.sh --stop   # also stop rke2-server
 
 Logs: `journalctl -u amdeai-staged-cluster-startup -f` and `~/.cache/amdeai/staged-startup.log`
 
+**k9s:** see [`docs/K9S_CHEATSHEET.md`](K9S_CHEATSHEET.md) for cluster lifecycle + k9s navigation on this stack.
+
 ---
 
 ## What Bloom installs (gfx1151 path)

@@ -25,17 +25,29 @@ for ISVC in $(kubectl get inferenceservice -n "$NS" -o name 2>/dev/null | grep -
     continue
   fi
   echo "Patching ${NS}/${name}..."
-  kubectl get inferenceservice "$name" -n "$NS" -o json | python3 -c "
+  patch="$(kubectl get inferenceservice "$name" -n "$NS" -o json | python3 -c "
 import json,sys
 isvc=json.load(sys.stdin)
 pred=isvc['spec']['predictor']
-pred['volumes']=[v for v in pred.get('volumes',[]) if v.get('name')!='${VOL}']
-pred['volumes'].append({'name':'${VOL}','configMap':{'name':'${CM}'}})
+want_vol={'name':'${VOL}','configMap':{'name':'${CM}'}}
+want_mount={'name':'${VOL}','mountPath':'${MOUNT_PATH}','readOnly':True}
+vols=[v for v in pred.get('volumes',[]) if v.get('name')!='${VOL}']
+vols.append(want_vol)
 c=pred['containers'][0]
-c['volumeMounts']=[m for m in c.get('volumeMounts',[]) if m.get('name')!='${VOL}']
-c['volumeMounts'].append({'name':'${VOL}','mountPath':'${MOUNT_PATH}','readOnly':True})
-print(json.dumps({'spec':{'predictor':pred}}))
-" | kubectl patch inferenceservice "$name" -n "$NS" --type=merge -p "$(cat)"
+mounts=[m for m in c.get('volumeMounts',[]) if m.get('name')!='${VOL}']
+mounts.append(want_mount)
+if pred.get('volumes')==vols and c.get('volumeMounts')==mounts:
+    print('UNCHANGED')
+else:
+    pred['volumes']=vols
+    c['volumeMounts']=mounts
+    print(json.dumps({'spec':{'predictor':pred}}))
+")"
+  if [[ "$patch" == "UNCHANGED" ]]; then
+    echo "  Profile mount already present; skipping pod restart."
+    continue
+  fi
+  echo "$patch" | kubectl patch inferenceservice "$name" -n "$NS" --type=merge -p "$(cat)"
   kubectl delete pod -n "$NS" -l "serving.kserve.io/inferenceservice=${name}" --force --grace-period=0 2>/dev/null || true
 done
 
